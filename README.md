@@ -8,5 +8,5 @@ Before running MS2Analyte_DataVisualization.py, make sure there are files in an 
 
 In the command line navigate to ms2analyte-master and run:
 
->> python MS2Analyte_DataVisualization.py
+> python MS2Analyte_DataVisualization.py
 
