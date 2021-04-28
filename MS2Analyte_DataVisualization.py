@@ -449,6 +449,7 @@ class Window (QDialog):
 		
 
 		self.ex_bOn_plot.hide()
+		self.div_plot.hide()
 
 
 		# self.showMaximized()
@@ -491,16 +492,20 @@ class Window (QDialog):
 		self.btn4.clicked.connect(self.Plot_Experiment)
 		self.btn4.clicked.connect(self.hide_sample)
 		self.btn4.clicked.connect(self.hide_replicate)
-
 		self.btn4.clicked.connect(self.hide_diversity)
 		# self.btn4.resize(buttonX,buttonY)
 		# self.btn4.move(320 + buttonmoveX,100 + buttonmoveY)
 		
 		self.btn5 = QPushButton("Diversity", self)
+		self.btn5.clicked.connect(self.Diversity_Plot_DF)
+		self.btn5.clicked.connect(self.show_diversity)
+		self.btn5.clicked.connect(self.Plot_Diversity)
 		self.btn5.clicked.connect(self.hide_sample)
 		self.btn5.clicked.connect(self.hide_replicate)
 		self.btn5.clicked.connect(self.hide_experiment)
-		self.btn5.clicked.connect(self.show_diversity)
+
+
+
 		# self.btn5.resize(buttonX,buttonY)
 		# self.btn5.move(470 + buttonmoveX,100 + buttonmoveY)
 		
@@ -761,6 +766,8 @@ class Window (QDialog):
 		self.comboAnalyte.currentTextChanged.connect(self.Plot_Replicate)
 		self.comboAnalyte.currentTextChanged.connect(self.Experiment_Plot_DF)
 		self.comboAnalyte.currentTextChanged.connect(self.Plot_Experiment)
+		self.comboAnalyte.currentTextChanged.connect(self.Diversity_Plot_DF)
+		self.comboAnalyte.currentTextChanged.connect(self.Plot_Diversity)
 		# else:
 		# 	pass
 
@@ -945,6 +952,11 @@ class Window (QDialog):
 		self.ex_bOn_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 
 
+
+
+
+		self.div_plot = pg.PlotWidget(self)
+		self.div_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		# self.ex_bOn_plot.move(20,250 + move_y)
 
 		
@@ -954,6 +966,15 @@ class Window (QDialog):
 			self.ex_bOn_plot.resize(2000,1500)
 			self.ex_bOn_plot.setRange(yRange=(0,15), padding = 0)
 		self.ex_bOn_plot.setLabel(axis='bottom',text='Max Mass')
+
+
+
+		if len(sample_names) < 16:
+			self.div_plot.resize(2000,100*len(sample_names))
+		else:
+			self.div_plot.resize(2000,1500)
+			self.div_plot.setRange(yRange=(0,15), padding = 0)
+		self.div_plot.setLabel(axis='bottom',text='Analyte ID')
 ##############################################################
 
 		self.ms2analytelabel = QLabel(self)
@@ -987,6 +1008,10 @@ class Window (QDialog):
 		layoutRegion6 = QGridLayout()
 
 		layoutRegion6.addWidget(self.ex_bOn_plot,1,0)
+
+		layoutRegion8 = QGridLayout()
+
+		layoutRegion8.addWidget(self.div_plot,1,0)
 ############# Create Main Grid ###############################
 
 		# g.addWidget(button, N, 0, 1, N, QtCore.Qt.AlignCenter)
@@ -1003,6 +1028,7 @@ class Window (QDialog):
 		layoutMain.addLayout(layoutRegion7,0,2, QtCore.Qt.AlignCenter)
 		layoutMain.addLayout(layoutRegion4,1,2, 1, 1,QtCore.Qt.AlignTop)
 		layoutMain.addLayout(layoutRegion6,1,0, 1,1)
+		layoutMain.addLayout(layoutRegion8,1,0, 1,1)
 ############################################################################
 
 
@@ -2040,7 +2066,125 @@ class Window (QDialog):
 		else:
 			pass
 
+	def Plot_Diversity(self):
 
+		self.div_plot.setYRange(min=-20,max=1)
+		self.div_plot.setXRange(min=0,max=140)
+		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
+		Sample_State = tab_state.return_sample_state()
+		Replicate_State = tab_state.return_replicate_state()
+		Experiment_State = tab_state.return_experiment_state()
+		Diversity_State = tab_state.return_diversity_state()
+
+
+		if Diversity_State == False:
+			comboAnalyte=self.comboAnalyte.currentText()
+
+			
+
+			samples, experiment_df = self.Diversity_Plot_DF()
+
+			self.div_plot.clear()
+			i=0
+			while i < len(samples):
+				analyte_array = []
+				experiment_sample_df = experiment_df[experiment_df.sample_name == samples[i]]
+
+
+				experiment_array_BOn = []
+
+
+				for experiment_analyte_id in experiment_sample_df.experiment_analyte_id.unique():
+					experiment_array_BOn.append([experiment_sample_df[experiment_sample_df["experiment_analyte_id"] == experiment_analyte_id]["experiment_analyte_id"].to_numpy(), 
+									experiment_sample_df[experiment_sample_df["experiment_analyte_id"] == experiment_analyte_id]["sample_analyte_max_intensity"].to_numpy()])
+					analyte_array.append(experiment_analyte_id)
+					print(experiment_analyte_id)
+				
+				analyte_array = [0 if str(z) == 'nan' else z for z in analyte_array]
+
+
+
+				analyte_colour_array = [0]*len(analyte_array)
+
+
+				a = 0
+				while a < len(analyte_array):
+
+					analyte_colour_array[a] = int((analyte_array[a] + 1) % 299)
+					a+=1
+
+				if comboAnalyte == "Show All":
+					
+					colour = 0
+					for analyte in experiment_array_BOn:
+
+
+
+
+
+						y=[i]*len(analyte[0])
+
+						x=analyte[0]
+
+						max_int = max(analyte[1])
+
+
+						test = self.div_plot.plot(title= "Test", x=x, y=y, pen=None, symbolPen=pg.intColor(analyte_colour_array[colour], hues=20, values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],hues=20,values=5),symbol='o', symbolSize= 10)
+						min_int = 50000
+						int_x=40
+						if max_int < min_int:
+							test.setSymbolSize((max_int/230000)*int_x)
+						else:
+							test.setSymbolSize((max_int/230000)*4)
+
+						colour+=1
+				if comboAnalyte != "Show All":
+					alpha=30
+					colour = 0
+
+					for analyte in experiment_array_BOn:
+
+
+
+
+						max_int = max(analyte[1])
+						if analyte_array[colour] == float(comboAnalyte):
+
+
+							test = self.div_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour], hues=20, values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],hues=20,values=5),symbol='o', symbolSize= 10)
+							min_int = 50000
+							int_x=40
+							if max_int < min_int:
+								test.setSymbolSize((max_int/230000)*int_x)
+							else:
+								test.setSymbolSize((max_int/230000)*4)
+						else:
+							pass
+						test = self.div_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour], hues=20, values=5, alpha = alpha), symbolBrush=pg.intColor(analyte_colour_array[colour],hues=20,values=5, alpha = alpha),symbol='o', symbolSize= 10)
+						min_int = 50000
+						int_x=40
+						if max_int < min_int:
+							test.setSymbolSize((max_int/230000)*int_x)
+						else:
+							test.setSymbolSize((max_int/230000)*4)
+
+						colour+=1
+
+				i+=1
+
+
+			
+
+
+			print('PLOT SAMPLES', samples)
+
+			ticks = samples
+			ticksdict = dict(enumerate(ticks))
+			ax = self.div_plot.getAxis('left')
+			ax.setTickSpacing(1,1)
+			ax.setTicks([ticksdict.items()])
+		else:
+			pass
 ##################################################################################################################	
 
 		return 
@@ -2653,6 +2797,43 @@ class Window (QDialog):
 
 		return samples, experiment_df
 
+
+
+
+	def Diversity_Plot_DF(self):
+
+		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
+		Sample_State = tab_state.return_sample_state()
+		Replicate_State = tab_state.return_replicate_state()
+		Experiment_State = tab_state.return_experiment_state()
+		Diversity_State = tab_state.return_diversity_state()
+
+		if Diversity_State == False:
+
+			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text())
+
+			BlankState = state.return_blank_state()
+			NullState = state.return_null_state()
+
+			experiment_df = import_experiment_dataframe(input_structure)
+			experiment_df =experiment_df.sort_values(by='sample_processing_order')
+			
+			if BlankState == True:
+				experiment_df=experiment_df[experiment_df.experiment_analyte_is_blank != True]
+			else:
+				pass
+			sample_name_df = experiment_df.sample_name
+			sample_name_sorted_df = sample_name_df.drop_duplicates()
+			sample_name_sorted_df = sample_name_sorted_df.iloc[::-1]
+
+			samples = sample_name_sorted_df.values
+
+		else:
+			samples=[]
+			experiment_df = []
+
+		return samples, experiment_df
+
 	def ms1_Plot_DF(self):
 		comboText=self.comboBox.currentText()
 
@@ -2869,9 +3050,9 @@ class Window (QDialog):
 		# self.Nullbutton.setEnabled(True)
 		# self.chooseSample.setEnabled(True)
 		# self.showNull.setEnabled(True)
-		self.ms1_plot.hide()
-		self.ms2_plot.hide()
+		self.div_plot.show()
 	def hide_diversity(self):
+		self.div_plot.hide()
 		pass
 
 
