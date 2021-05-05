@@ -8,7 +8,6 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import pyqtgraph as pg
 import numpy as np
-import os
 import pandas
 import random
 import time
@@ -18,21 +17,15 @@ from decimal import Decimal, ROUND_DOWN
 import cProfile
 import pstats
 from PyQt5.QtGui import QPixmap
-
-
-
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QLineEdit, QTabWidget, \
 				  QGridLayout, QVBoxLayout, QHBoxLayout, QGroupBox, QDialog
-
 from PyQt5.QtGui import QIcon
-
 from PyQt5.QtCore import pyqtSlot
-
-
-				  
-
-
 from ms2analyte.file_handling import data_import
+
+
+
+
 # Handle high resolution displays:
 if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
@@ -42,7 +35,7 @@ if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
 
 def fetch_sample_list(input_structure, input_type):
 	sample_list = data_import.name_extract(input_structure, input_type)
-
+	
 	return sample_list
 
 
@@ -66,11 +59,6 @@ def import_experiment_dataframe(input_structure):
     
 
 
-# def import_experiment_dataframe(input_structure):
-# 	with open((os.path.join(input_structure.output_directory,  "NCI_pure_compounds_experiment_analyte_overview_tableau_output.csv"))) as f:
-# 		df = pandas.read_csv(f)
-
-# 	return df
 
 
 #######################################################################################
@@ -78,15 +66,8 @@ def import_ms1_dataframe(input_structure, input_type, sample_name):
 	with open((os.path.join(input_structure.output_directory, input_type, sample_name + '_replicate_analyte_mass_spectra.pickle')), 'rb') as f:
 
 
-
-
 		inputdata = pickle.load(f)
 		
-
-
-
-
-
 
 	b = 0
 	replicate_analyte_id = []
@@ -215,15 +196,6 @@ def import_ms1_dataframe(input_structure, input_type, sample_name):
 
 
 
-
-
-
-
-
-
-
-
-
 	with open((os.path.join(input_structure.output_directory,'Samples',  input_structure.experiment_name + '_experiment_analyte_mass_spectra.pickle')), 'rb') as f:
 
 
@@ -290,13 +262,11 @@ def import_ms1_dataframe(input_structure, input_type, sample_name):
 	return df_combine, df_combine2, df_combine3
 
 	
-	
-	
-
+#################################################################################################
+#### Fetch Input Structure, Input type and Sample name list
 
 input_structure = data_import.input_data_structure()
 input_type = "Samples"
-
 sample_names = fetch_sample_list(input_structure, input_type)
 
 
@@ -399,11 +369,11 @@ class Window (QDialog):
 		app.setStyle('Fusion')
 		# self.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 
-		self.setWindowTitle("Ms2Analyte")
+		self.setWindowTitle("MS2Analyte")
 		self.setGeometry(100,100,1700,900)
 		self.setWindowIcon(QIcon('ms2analyte_icon.png'))
 		pg.setConfigOption('background', 'w')
-
+		pg.setConfigOption('foreground', 'k')
 
 
 		self.region_1()
@@ -458,7 +428,7 @@ class Window (QDialog):
 	def region_1(self):
 		self.horizontalGroupBox = QGroupBox()
 		layoutMain = QGridLayout()
-
+		
 
 		self.btn2 = QPushButton("Sample", self)
 		self.btn2.clicked.connect(self.Sample_Plot_DF)
@@ -487,7 +457,7 @@ class Window (QDialog):
 		# self.btn3.move(170 + buttonmoveX,100 + buttonmoveY)
 
 		self.btn4 = QPushButton("Experiment", self)
-		self.btn4.clicked.connect(self.Experiment_Plot_DF)
+		self.btn4.clicked.connect(self.Diversity_Plot_DF)
 		self.btn4.clicked.connect(self.show_experiment)
 		self.btn4.clicked.connect(self.Plot_Experiment)
 		self.btn4.clicked.connect(self.hide_sample)
@@ -764,7 +734,8 @@ class Window (QDialog):
 		self.resetRTButton.clicked.connect(self.Plot_Replicate)
 		self.comboAnalyte.currentTextChanged.connect(self.Replicate_Plot_DF)
 		self.comboAnalyte.currentTextChanged.connect(self.Plot_Replicate)
-		self.comboAnalyte.currentTextChanged.connect(self.Experiment_Plot_DF)
+		# self.comboAnalyte.currentTextChanged.connect(self.Experiment_Plot_DF)
+		self.comboAnalyte.currentTextChanged.connect(self.Diversity_Plot_DF)
 		self.comboAnalyte.currentTextChanged.connect(self.Plot_Experiment)
 		self.comboAnalyte.currentTextChanged.connect(self.Diversity_Plot_DF)
 		self.comboAnalyte.currentTextChanged.connect(self.Plot_Diversity)
@@ -828,7 +799,7 @@ class Window (QDialog):
 
 		self.Blankbutton.clicked.connect(self.Plot_Experiment)
 
-
+		self.Blankbutton.clicked.connect(self.Plot_Diversity)
 
 
 ########### Grid Region 2 ###########################
@@ -880,30 +851,34 @@ class Window (QDialog):
 
 
 
-
+		comboText = self.comboBox.currentText()
 
 
 ################################################# Sample
 		self.mz_plot = pg.PlotWidget(self)
-		self.mz_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
-		# self.mz_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '12pt'})
+		
+		self.mz_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
+		self.mz_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
+		self.mz_plot.setTitle(comboText)
+		self.mz_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
 
-		self.mz_plot.setLabel(axis='left',text='Intensity')
-
+		self.mz_plot.setStyleSheet("background-color: white;  border:1px solid black")
 
 		self.rt_plot = pg.PlotWidget(self)
 		self.rt_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
-		self.rt_plot.setLabel(axis='bottom',text='rt')
-		self.rt_plot.setLabel(axis='left',text='Intensity')
-		
+		self.rt_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
+		self.rt_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
+		self.rt_plot.setTitle(comboText)
 		self.ms1_plot = pg.PlotWidget(self)
 		self.ms1_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
-		self.ms1_plot.setLabel(axis='bottom',text='m/z')
-		self.ms1_plot.setTitle("MS1 Spectra")
+		self.ms1_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'})
+		self.ms1_plot.setTitle("MS<sup>1</sup> Spectra")
+		self.ms1_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
 		self.ms2_plot = pg.PlotWidget(self)
 		self.ms2_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
-		self.ms2_plot.setLabel(axis='bottom',text='m/z')
-		self.ms2_plot.setTitle("MS2 Spectra")
+		self.ms2_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
+		self.ms2_plot.setTitle("MS<sup>2</sup> Spectra")
+		self.ms2_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
 ################################################# Replicate
 
 ############# Replicate #############################
@@ -912,35 +887,35 @@ class Window (QDialog):
 		self.mz_r1_plot = pg.PlotWidget(self)
 		self.mz_r1_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.mz_r1_plot.setTitle("Replicate 1 m/z vs intensity")
-		self.mz_r1_plot.setLabel(axis='bottom',text='m/z')
+		self.mz_r1_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_r1_plot.setLabel(axis='left',text='Intensity')
 		
 		self.mz_r2_plot = pg.PlotWidget(self)
 		self.mz_r2_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.mz_r2_plot.setTitle("Replicate 2 m/z vs intensity")
-		self.mz_r2_plot.setLabel(axis='bottom',text='m/z')
+		self.mz_r2_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_r2_plot.setLabel(axis='left',text='Intensity')
 		
 		self.mz_r3_plot = pg.PlotWidget(self)
 		self.mz_r3_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.mz_r3_plot.setTitle("Replicate 3 m/z vs intensity")
-		self.mz_r3_plot.setLabel(axis='bottom',text='m/z')
+		self.mz_r3_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_r3_plot.setLabel(axis='left',text='Intensity')
 
 		self.rt_r1_plot = pg.PlotWidget(self)
 		self.rt_r1_plot.setTitle("Replicate 1 rt vs intesnity")
 		self.rt_r1_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
-		self.rt_r1_plot.setLabel(axis='bottom',text='rt')
+		self.rt_r1_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_r1_plot.setLabel(axis='left',text='Intensity')
 		
 		self.rt_r2_plot = pg.PlotWidget(self)
 		self.rt_r2_plot.setTitle("Replicate 2 rt vs intesnity")
-		self.rt_r2_plot.setLabel(axis='bottom',text='rt')
+		self.rt_r2_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_r2_plot.setLabel(axis='left',text='Intensity')
 		self.rt_r2_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.rt_r3_plot = pg.PlotWidget(self)
 		self.rt_r3_plot.setTitle("Replicate 3 rt vs intesnity")
-		self.rt_r3_plot.setLabel(axis='bottom',text='rt')
+		self.rt_r3_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_r3_plot.setLabel(axis='left',text='Intensity')
 		self.rt_r3_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 
@@ -989,12 +964,13 @@ class Window (QDialog):
 ############ Grid Region 3 ###################################
 
 		layoutRegion3 = QGridLayout()
-		layoutRegion3.addWidget(self.mz_plot,1,0)
-		layoutRegion3.addWidget(self.rt_plot,2,0)
+		
+		layoutRegion3.addWidget(self.mz_plot,0,1)
+		layoutRegion3.addWidget(self.rt_plot,1,1)
 
 		layoutRegion5 = QGridLayout()
-		layoutRegion5.addWidget(self.ms1_plot,1,1)
-		layoutRegion5.addWidget(self.ms2_plot,2,1)
+		layoutRegion5.addWidget(self.ms1_plot,0,1)
+		layoutRegion5.addWidget(self.ms2_plot,1,1)
 
 		
 
@@ -1019,7 +995,7 @@ class Window (QDialog):
 		layoutMain.setColumnStretch(1, 2)
 		# layoutMain.setRowStretch(1, 0.5)
 		# layoutRegion2.setColumnStretch(0,4)
-		layoutMain.addLayout(layoutRegion3,1,0)
+		layoutMain.addLayout(layoutRegion3,1,0,QtCore.Qt.AlignRight)
 		layoutMain.addLayout(layoutRegion5,1,1,QtCore.Qt.AlignRight)
 		layoutMain.addLayout(layoutRegion1,0,0,QtCore.Qt.AlignLeft)
 
@@ -1157,7 +1133,7 @@ class Window (QDialog):
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
 		Experiment_State = tab_state.return_experiment_state()
-
+		print('Loading Sample Tab')
 		
 
 
@@ -1167,7 +1143,7 @@ class Window (QDialog):
 			self.rt_plot.disableAutoRange(axis=None)
 			comboAnalyte=self.comboAnalyte.currentText()
 		
-
+			print('Loading Sample Tab')
 			
 			############### Fetch data for mz_plot and plot sample from comboBox ###############
 
@@ -1216,7 +1192,7 @@ class Window (QDialog):
 
 					analyte_colour_rt_array[i] = int((analyte_rt_array[i] + 1) % 299)
 					i+=1
-
+				print('Loading Sample Tab')
 			if chooseAnalyte == "Replicate Analyte ID":
 
 				for analyte_id in sorted_df_mz.replicate_analyte_id.unique():
@@ -1259,7 +1235,7 @@ class Window (QDialog):
 					analyte_colour_rt_array[i] = int((analyte_rt_array[i] + 1) % 299)
 					i+=1
 
-
+				print('Loading Sample Tab')
 
 			if chooseAnalyte == "Experiment Analyte ID":
 
@@ -1303,7 +1279,7 @@ class Window (QDialog):
 					analyte_colour_rt_array[i] = int((analyte_rt_array[i] + 1) % 299)
 					i+=1
 
-
+				print('Loading Sample Tab')
 
 
 
@@ -1313,7 +1289,7 @@ class Window (QDialog):
 
 			if comboAnalyte != "Show All":
 				alpha=1
-
+				print('Loading Sample Tab..')
 
 				colour=0
 				for analyte in mz_array:
@@ -1352,7 +1328,7 @@ class Window (QDialog):
 					colour+=1
 
 
-
+				print('Loading Sample Tab...')
 			else:
 				alpha=255
 				colour=0
@@ -1371,7 +1347,7 @@ class Window (QDialog):
 
 					self.rt_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_rt_array[colour], hues=20,values=5),symbol='o', symbolSize=3)
 					colour+=1
-
+				print('Loading Sample Tab...')
 
 			############### Fetch data for rt plot and plot sample from comboBox ###############
 
@@ -1399,7 +1375,7 @@ class Window (QDialog):
 		else:
 			pass
 
-
+		print('Sample Tab Loaded Succesfully')
 
 
 ##################################################################################################################	
@@ -1408,7 +1384,7 @@ class Window (QDialog):
 		
 
 	def Plot_Replicate(self):
-
+		print('Loading Replicate Tab')
 		chooseAnalyte = self.chooseAnalyte.currentText()
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
@@ -1419,7 +1395,7 @@ class Window (QDialog):
 		print(Experiment_State)
 
 
-
+		print('Loading Replicate Tab')
 		if Replicate_State == False:
 
 
@@ -1445,6 +1421,7 @@ class Window (QDialog):
 
 
 			if chooseAnalyte == "Sample Analyte ID":
+				print('Loading Replicate Tab')
 				for analyte_id in sorted_df_mz_r1.analyte_id.unique():
 
 					mz_array_r1.append([sorted_df_mz_r1[sorted_df_mz_r1["analyte_id"] == analyte_id]["mz"].to_numpy(),
@@ -1472,21 +1449,22 @@ class Window (QDialog):
 				analyte_colour_mz_array_r1 = [0]*len(analyte_mz_array_r1)
 				analyte_colour_rt_array_r1 = [0]*len(analyte_rt_array_r1)
 
-				i = 0
-				while i < len(analyte_mz_array_r1):
+				
+				for i in range(0, len(analyte_mz_array_r1)):
 					analyte_colour_mz_array_r1[i] = int((analyte_mz_array_r1[i] + 1) % 299)
-					i+=1
+					
 
 
-				i = 0
-				while i < len(analyte_rt_array_r1):
+				
+				for i in range(0, len(analyte_rt_array_r1)):
 
 					analyte_colour_rt_array_r1[i] = int((analyte_rt_array_r1[i] + 1) % 299)
-					i+=1
-
+					
+				print('Loading Replicate Tab')
 
 
 			if chooseAnalyte == "Replicate Analyte ID":
+				print('Loading Replicate Tab')
 				for analyte_id in sorted_df_mz_r1.replicate_analyte_id.unique():
 
 					mz_array_r1.append([sorted_df_mz_r1[sorted_df_mz_r1["replicate_analyte_id"] == analyte_id]["mz"].to_numpy(),
@@ -1497,7 +1475,7 @@ class Window (QDialog):
 
 
 
-
+				print('Loading Replicate Tab')
 
 				for analyte_id in sorted_df_rt_r1.replicate_analyte_id.unique():
 					rt_array_r1.append([sorted_df_rt_r1[sorted_df_rt_r1["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
@@ -1532,7 +1510,7 @@ class Window (QDialog):
 
 
 
-
+				print('Loading Replicate Tab')
 
 
 
@@ -1541,6 +1519,7 @@ class Window (QDialog):
 			self.mz_r1_plot.clear()
 
 			if comboAnalyte != "Show All":
+				print('Loading Replicate Tab')
 				alpha=1
 
 
@@ -1598,7 +1577,7 @@ class Window (QDialog):
 
 					self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r1[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_rt_array_r1[colour], hues=20,values=5),symbol='o', symbolSize=3)
 					colour+=1
-
+				print('Loading Replicate Tab')
 
 			############### Fetch data for rt plot and plot sample from comboBox ###############
 
@@ -1611,6 +1590,7 @@ class Window (QDialog):
 			analyte_rt_array_r2 = []
 
 			if chooseAnalyte == "Sample Analyte ID":
+				print('Loading Replicate Tab')
 				for analyte_id in sorted_df_mz_r2.analyte_id.unique():
 
 					mz_array_r2.append([sorted_df_mz_r2[sorted_df_mz_r2["analyte_id"] == analyte_id]["mz"].to_numpy(),
@@ -1637,7 +1617,7 @@ class Window (QDialog):
 
 				analyte_colour_mz_array_r2 = [0]*len(analyte_mz_array_r2)
 				analyte_colour_rt_array_r2 = [0]*len(analyte_rt_array_r2)
-
+				print('Loading Replicate Tab')
 				i = 0
 				while i < len(analyte_mz_array_r2):
 					analyte_colour_mz_array_r2[i] = int((analyte_mz_array_r2[i] + 1) % 299)
@@ -1652,6 +1632,7 @@ class Window (QDialog):
 
 
 			if chooseAnalyte == "Replicate Analyte ID":
+				print('Loading Replicate Tab')
 				for analyte_id in sorted_df_mz_r2.replicate_analyte_id.unique():
 
 					mz_array_r2.append([sorted_df_mz_r2[sorted_df_mz_r2["replicate_analyte_id"] == analyte_id]["mz"].to_numpy(),
@@ -1700,8 +1681,9 @@ class Window (QDialog):
 
 			self.rt_r2_plot.clear()
 			self.mz_r2_plot.clear()
-
+			print('Loading Replicate Tab')
 			if comboAnalyte != "Show All":
+				print('Loading Replicate Tab')
 				alpha=1
 
 
@@ -1742,7 +1724,7 @@ class Window (QDialog):
 					colour+=1
 
 
-
+				print('Loading Replicate Tab')
 			else:
 				alpha=255
 				colour=0
@@ -1768,8 +1750,9 @@ class Window (QDialog):
 			analyte_mz_array_r3 = []
 			rt_array_r3 = []
 			analyte_rt_array_r3 = []
-
+			print('Loading Replicate Tab')
 			if chooseAnalyte == "Sample Analyte ID":
+				print('Loading Replicate Tab')
 				for analyte_id in sorted_df_mz_r3.analyte_id.unique():
 
 					mz_array_r3.append([sorted_df_mz_r3[sorted_df_mz_r3["analyte_id"] == analyte_id]["mz"].to_numpy(),
@@ -1821,7 +1804,7 @@ class Window (QDialog):
 
 					
 
-
+				print('Loading Replicate Tab')
 
 				for analyte_id in sorted_df_rt_r3.replicate_analyte_id.unique():
 					rt_array_r3.append([sorted_df_rt_r3[sorted_df_rt_r3["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
@@ -1858,8 +1841,9 @@ class Window (QDialog):
 
 			self.rt_r3_plot.clear()
 			self.mz_r3_plot.clear()
-
+			print('Loading Replicate Tab')
 			if comboAnalyte != "Show All":
+				print('Loading Replicate Tab')
 				alpha=1
 
 
@@ -1948,16 +1932,21 @@ class Window (QDialog):
 			self.rt_r3_plot.setXRange(float(state.return_rtMin_state()),float(state.return_rtMax_state()))
 		else:
 			pass
+		print('Replicate Tab Loaded Succesfully')
 		return
 
 	def Plot_Experiment(self):
 
-		self.ex_bOn_plot.setYRange(min=-20,max=1)
-		self.ex_bOn_plot.setXRange(min=100,max=1200)
+		# self.ex_bOn_plot.setYRange(min=-20,max=1)
+		# self.ex_bOn_plot.setXRange(min=100,max=1200)
+		self.ex_bOn_plot.disableAutoRange(axis=None)
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
 		Experiment_State = tab_state.return_experiment_state()
+
+
+
 		if Experiment_State == False:
 			comboAnalyte=self.comboAnalyte.currentText()
 
@@ -1966,10 +1955,10 @@ class Window (QDialog):
 			samples, experiment_df = self.Experiment_Plot_DF()
 
 			self.ex_bOn_plot.clear()
-			i=0
-			while i < len(samples):
+			
+			for i in range(0, len(samples)):
 				analyte_array = []
-				experiment_sample_df = experiment_df[experiment_df.sample_name != samples[i]]
+				experiment_sample_df = experiment_df[experiment_df.sample_name == samples[i]]
 
 
 				experiment_array_BOn = []
@@ -1988,11 +1977,11 @@ class Window (QDialog):
 				analyte_colour_array = [0]*len(analyte_array)
 
 
-				a = 0
-				while a < len(analyte_array):
+				
+				for a in range(0, len(analyte_array)):
 
 					analyte_colour_array[a] = int((analyte_array[a] + 1) % 299)
-					a+=1
+					
 
 				if comboAnalyte == "Show All":
 					
@@ -2051,7 +2040,7 @@ class Window (QDialog):
 
 						colour+=1
 
-				i+=1
+				
 
 
 			
@@ -2066,10 +2055,12 @@ class Window (QDialog):
 		else:
 			pass
 
+		self.ex_bOn_plot.enableAutoRange(axis=None)
 	def Plot_Diversity(self):
-
-		self.div_plot.setYRange(min=-20,max=1)
-		self.div_plot.setXRange(min=0,max=140)
+		print('Loading Diversity Tab')
+		# self.div_plot.setYRange(min=-20,max=1)
+		# self.div_plot.setXRange(min=0,max=140)
+		self.div_plot.disableAutoRange(axis=None)
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
@@ -2080,25 +2071,26 @@ class Window (QDialog):
 		if Diversity_State == False:
 			comboAnalyte=self.comboAnalyte.currentText()
 
-			
+			print('Loading Diversity Tab')
 
 			samples, experiment_df = self.Diversity_Plot_DF()
 
 			self.div_plot.clear()
-			i=0
-			while i < len(samples):
+			
+			for i in range(0, len(samples)):
+				print('Loading Diversity Tab')
 				analyte_array = []
 				experiment_sample_df = experiment_df[experiment_df.sample_name == samples[i]]
 
 
 				experiment_array_BOn = []
 
-
+				print('Loading Diversity Tab')
 				for experiment_analyte_id in experiment_sample_df.experiment_analyte_id.unique():
 					experiment_array_BOn.append([experiment_sample_df[experiment_sample_df["experiment_analyte_id"] == experiment_analyte_id]["experiment_analyte_id"].to_numpy(), 
 									experiment_sample_df[experiment_sample_df["experiment_analyte_id"] == experiment_analyte_id]["sample_analyte_max_intensity"].to_numpy()])
 					analyte_array.append(experiment_analyte_id)
-					print(experiment_analyte_id)
+				
 				
 				analyte_array = [0 if str(z) == 'nan' else z for z in analyte_array]
 
@@ -2106,15 +2098,15 @@ class Window (QDialog):
 
 				analyte_colour_array = [0]*len(analyte_array)
 
-
-				a = 0
-				while a < len(analyte_array):
+				print('Loading Diversity Tab')
+				
+				for a in range(0, len(analyte_array)):
 
 					analyte_colour_array[a] = int((analyte_array[a] + 1) % 299)
-					a+=1
+					
 
 				if comboAnalyte == "Show All":
-					
+					print('Loading Diversity Tab')
 					colour = 0
 					for analyte in experiment_array_BOn:
 
@@ -2139,6 +2131,7 @@ class Window (QDialog):
 
 						colour+=1
 				if comboAnalyte != "Show All":
+					print('Loading Diversity Tab')
 					alpha=30
 					colour = 0
 
@@ -2170,14 +2163,14 @@ class Window (QDialog):
 
 						colour+=1
 
-				i+=1
+				
 
 
 			
 
 
 			print('PLOT SAMPLES', samples)
-
+			
 			ticks = samples
 			ticksdict = dict(enumerate(ticks))
 			ax = self.div_plot.getAxis('left')
@@ -2185,6 +2178,8 @@ class Window (QDialog):
 			ax.setTicks([ticksdict.items()])
 		else:
 			pass
+		self.div_plot.enableAutoRange(axis=None)
+		print('Diversity Tab Loaded Succesfully')
 ##################################################################################################################	
 
 		return 
@@ -2228,8 +2223,8 @@ class Window (QDialog):
 
 					if float(comboAnalyte) == analyte_id_array[colour]:
 						print("comboAnalyte = colour")
-
-						self.ms1_plot.plot( x=analyte[1], y=analyte[0])
+						pen = pg.mkPen(color=(0, 0, 0))
+						self.ms1_plot.plot( x=analyte[1], y=analyte[0], pen=pen )
 
 
 						i = 0
@@ -2237,7 +2232,7 @@ class Window (QDialog):
 							np.round(analyte[1],2)
 							np.round(analyte[0],2)
 							if analyte[0][i] > 0:
-								text = pg.TextItem(str(np.round(analyte[1][i],2)))
+								text = pg.TextItem(str(np.round(analyte[1][i],2)),color=(0,0,0))
 								self.ms1_plot.addItem(text)
 
 
@@ -2247,7 +2242,7 @@ class Window (QDialog):
 								i+=1
 					else:
 
-						print("comboAnalyte not = colour")
+						pass
 					colour +=1
 
 			# self.ms1_plot.enableAutoRange(axis=None)
@@ -2364,8 +2359,8 @@ class Window (QDialog):
 						print("comboAnalyte = colour")
 						analyte[1] = [0 if str(i) == 'nan' else i for i in analyte[1]]
 						analyte[0] = [0 if str(i) == 'nan' else i for i in analyte[0]]
-
-						self.ms1_plot.plot( x=mz_array, y=intensity_array)
+						pen = pg.mkPen(color=(0, 0, 0))
+						self.ms1_plot.plot( x=mz_array, y=intensity_array,pen=pen)
 						print('INTENSITY ARRAY',intensity_array[0])
 						print('MZ ARRAY',mz_array[0])
 
@@ -2373,7 +2368,7 @@ class Window (QDialog):
 						while i < len(mz_array):
 							if intensity_array[i] > 0:
 
-								text = pg.TextItem(str(np.round(mz_array[i],2)))
+								text = pg.TextItem(str(np.round(mz_array[i],2)),color=(0,0,0))
 								self.ms1_plot.addItem(text)
 
 
@@ -2417,14 +2412,14 @@ class Window (QDialog):
 
 					if float(comboAnalyte) == analyte_id_array[colour]:
 						print("comboAnalyte = colour")
-
-						self.ms1_plot.plot( x=analyte[1], y=analyte[0])
+						pen = pg.mkPen(color=(0, 0, 0))
+						self.ms1_plot.plot( x=analyte[1], y=analyte[0],pen=pen)
 
 						i = 0
 						while i < len(analyte[1]):
 							if analyte[0][i] > 0:
 
-								text = pg.TextItem(str(np.round(analyte[1][i],2)))
+								text = pg.TextItem(str(np.round(analyte[1][i],2)),color=(0,0,0))
 								self.ms1_plot.addItem(text)
 
 
@@ -2772,17 +2767,18 @@ class Window (QDialog):
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
 		Experiment_State = tab_state.return_experiment_state()
-
+		print('EXPERIMENT PLOT DF 1')
 
 		if Experiment_State == False:
-
+			print('EXPERIMENT PLOT DF 2')
 			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text())
 
 			BlankState = state.return_blank_state()
 			NullState = state.return_null_state()
 
 			experiment_df = import_experiment_dataframe(input_structure)
-			print(experiment_df)
+			experiment_df =experiment_df.sort_values(by='sample_processing_order')
+			
 			if BlankState == True:
 				experiment_df=experiment_df[experiment_df.experiment_analyte_is_blank != True]
 			else:
