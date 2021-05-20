@@ -1771,6 +1771,9 @@ class Window (QDialog):
 
 
 			if chooseAnalyte == "Replicate Analyte ID":
+
+
+
 				print('Loading Replicate Tab for Replicate Analyte ID')
 				for analyte_id in sorted_df_mz_r1.replicate_analyte_id.unique():
 
@@ -2083,32 +2086,34 @@ class Window (QDialog):
 				if Toggle_rt == True:
 				
 
-					for analyte_id in sorted_df_rt_r1.analyte_id.unique():
-						rt_array_r2.append([sorted_df_rt_r2[sorted_df_rt_r2["analyte_id"] == analyte_id]["rt"].to_numpy(),
-					                     sorted_df_rt_r2[sorted_df_rt_r2["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+					for analyte_id in sorted_df_rt_r1.replicate_analyte_id.unique():
+						rt_array_r2.append([sorted_df_rt_r2[sorted_df_rt_r2["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt_r2[sorted_df_rt_r2["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
 						analyte_rt_array_r2.append(analyte_id)
 				else:
 
 
 
-					for analyte_id in sorted_df_rt_r2.analyte_id.unique():
+					for analyte_id in sorted_df_rt_r2.replicate_analyte_id.unique():
+						if analyte_id != None:
+							analyte_df = sorted_df_rt_r2[sorted_df_rt_r2.replicate_analyte_id == analyte_id]
 
-						analyte_df = sorted_df_rt_r2[sorted_df_rt_r2.analyte_id == analyte_id]
+							max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
 
-						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
-
-						max_peak_id_array = max_scan_df.peak_id.to_numpy()
-						max_peak_id = int(max_peak_id_array[0])
-
-
+							max_peak_id_array = max_scan_df.peak_id.to_numpy()
+							max_peak_id = int(max_peak_id_array[0])
 
 
-						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
 
-	
-						rt_array_r2.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
-					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
-						analyte_rt_array_r2.append(analyte_id)
+
+							sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+		
+							rt_array_r2.append([sorted_df_rt1[sorted_df_rt1["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
+						                     sorted_df_rt1[sorted_df_rt1["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
+							analyte_rt_array_r2.append(analyte_id)
+						else:
+							pass
 
 
 				analyte_mz_array_r2 = [0 if str(i) == 'nan' else i for i in analyte_mz_array_r2]
@@ -2377,32 +2382,34 @@ class Window (QDialog):
 				if Toggle_rt == True:
 				
 
-					for analyte_id in sorted_df_rt_r3.analyte_id.unique():
-						rt_array_r3.append([sorted_df_rt_r3[sorted_df_rt_r3["analyte_id"] == analyte_id]["rt"].to_numpy(),
-					                     sorted_df_rt_r3[sorted_df_rt_r3["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+					for analyte_id in sorted_df_rt_r3.replicate_analyte_id.unique():
+						rt_array_r3.append([sorted_df_rt_r3[sorted_df_rt_r3["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt_r3[sorted_df_rt_r3["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
 						analyte_rt_array_r3.append(analyte_id)
 				else:
 
 
 
-					for analyte_id in sorted_df_rt_r3.analyte_id.unique():
+					for analyte_id in sorted_df_rt_r3.replicate_analyte_id.unique():
+						if analyte_id != None:
+							analyte_df = sorted_df_rt_r3[sorted_df_rt_r3.replicate_analyte_id == analyte_id]
 
-						analyte_df = sorted_df_rt_r3[sorted_df_rt_r3.analyte_id == analyte_id]
+							max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
 
-						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+							max_peak_id_array = max_scan_df.peak_id.to_numpy()
+							max_peak_id = int(max_peak_id_array[0])
 
-						max_peak_id_array = max_scan_df.peak_id.to_numpy()
-						max_peak_id = int(max_peak_id_array[0])
-
-	
+		
 
 
-						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+							sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
 
-	
-						rt_array_r3.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
-					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
-						analyte_rt_array_r3.append(analyte_id)
+		
+							rt_array_r3.append([sorted_df_rt1[sorted_df_rt1["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
+						                     sorted_df_rt1[sorted_df_rt1["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
+							analyte_rt_array_r3.append(analyte_id)
+						else:
+							pass
 
 
 				analyte_mz_array_r3 = [0 if str(i) == 'nan' else i for i in analyte_mz_array_r3]
