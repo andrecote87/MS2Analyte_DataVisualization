@@ -273,7 +273,7 @@ sample_names = fetch_sample_list(input_structure, input_type)
 #################################### Start GUI  ##################################################
 
 class State:
-	def __init__(self, null, blank, massMin, massMax, rtMin, rtMax):
+	def __init__(self, null, blank, massMin, massMax, rtMin, rtMax, Toggle_rt):
 
 		self.null = null
 		self.blank = blank
@@ -281,44 +281,48 @@ class State:
 		self.massMax = massMax
 		self.rtMin = rtMin
 		self.rtMax = rtMax
-
+		self.Toggle_rt = Toggle_rt
 
 
 	def return_null_state(self):
 
-		print("State:", self.null)
+		# print("State:", self.null)
 		return self.null
 
 
 	def return_blank_state(self):
 
-		print("State:", self.blank)
+		# print("State:", self.blank)
 		return self.blank
 
 
 	def return_massMin_state(self):
 
-		print("State:", self.massMin)
+		
 		return self.massMin
 
 
 
 	def return_massMax_state(self):
 
-		print("State:", self.massMax)
+		
 		return self.massMax
 
 
 	def return_rtMin_state(self):
 
-		print("State:", self.rtMin)
+		# print("State:", self.rtMin)
 		return self.rtMin
 
 
 	def return_rtMax_state(self):
 
-		print("State:", self.rtMax)
+		# print("State:", self.rtMax)
 		return self.rtMax
+
+	def return_Toggle_rt(self):
+
+		return self.Toggle_rt
 
 
 class Tab_State:
@@ -331,24 +335,65 @@ class Tab_State:
 
 	def return_sample_state(self):
 
-		print("Sample State:", self.sample_state)
+		# print("Sample State:", self.sample_state)
 		return self.sample_state
 
 	def return_replicate_state(self):
 
-		print("Replicate State:", self.replicate_state)
+		# print("Replicate State:", self.replicate_state)
 		return self.replicate_state
 
 	def return_experiment_state(self):
 
-		print("Experiment State:", self.experiment_state)
+		# print("Experiment State:", self.experiment_state)
 		return self.experiment_state
 
 	def return_diversity_state(self):
 
-		print("Diversity State:", self.diversity_state)
+		# print("Diversity State:", self.diversity_state)
 
 		return self.diversity_state
+
+class Current_Sample:
+	def __init__(self, current_sample):
+
+
+		self.current_sample = current_sample
+
+
+	def return_current_sample(self):
+
+		print("CURRENT SAMPLE", self.current_sample)
+
+		return self.current_sample
+
+
+
+
+
+
+class MyPlotWidget(pg.PlotWidget):
+
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+
+		# self.scene() is a pyqtgraph.GraphicsScene.GraphicsScene.GraphicsScene
+		self.scene().sigMouseClicked.connect(self.hover)    
+
+	
+	def hover(self, HoverEvent):
+		# mouseClickEvent is a pyqtgraph.GraphicsScene.mouseEvents.MouseClickEvent
+		# current_sample = Current_Sample("")
+		# print(current_sample.return_current_sample())
+
+		# print(total_df)
+		# print(Current_Sample.self.current_sample)
+		
+		print("Mass: ",HoverEvent.pos()[0],"Intensity: ", HoverEvent.pos()[1])
+		# print(HoverEvent.acceptClicks()[0])
+		
+		return 
+
 
 
 
@@ -379,6 +424,7 @@ class Window (QDialog):
 		self.region_1()
 		self.Plot_Sample()
 		self.Plot_ms1()
+		self.Plot_Analyte_Legend()
 		windowLayout = QVBoxLayout()
 		# windowLayout.setStyleSheet("background-color: white;")
 		windowLayout.addWidget(self.horizontalGroupBox)
@@ -398,7 +444,6 @@ class Window (QDialog):
 		# toolsMenu = mainMenu.addMenu('&Tools')
 
 
-		 
 
 
 
@@ -423,12 +468,26 @@ class Window (QDialog):
 
 
 		# self.showMaximized()
+		self.setWindowFlags(self.windowFlags() |
+			QtCore.Qt.WindowMinimizeButtonHint |
+			QtCore.Qt.WindowSystemMenuHint)
+
+		self.setWindowFlags(self.windowFlags() |
+			QtCore.Qt.WindowMaximizeButtonHint |
+			QtCore.Qt.WindowSystemMenuHint)
 		self.show()
 
 	def region_1(self):
 		self.horizontalGroupBox = QGroupBox()
 		layoutMain = QGridLayout()
 		
+
+
+
+		# self.s1 = QScrollBar()
+
+		# self.s1.sliderMoved.connect(self.Plot_Analyte_Legend)
+
 
 		self.btn2 = QPushButton("Sample", self)
 		self.btn2.clicked.connect(self.Sample_Plot_DF)
@@ -503,7 +562,9 @@ class Window (QDialog):
 		self.comboAnalyte = QComboBox(self)
 		self.comboBox.currentTextChanged.connect(self.reset_all)
 		self.comboBox.currentTextChanged.connect(self.Sample_Plot_DF)
-
+		self.comboBox.currentTextChanged.connect(self.Plot_Sample)
+		self.comboBox.currentTextChanged.connect(self.Replicate_Plot_DF)
+		self.comboBox.currentTextChanged.connect(self.Plot_Replicate)
 		self.comboBox.currentTextChanged.connect(self.Plot_ms1)
 
 
@@ -528,10 +589,12 @@ class Window (QDialog):
 		self.chooseAnalyte.currentTextChanged.connect(self.fill_combobox)
 		self.chooseAnalyte.currentTextChanged.connect(self.Sample_Plot_DF)
 		self.chooseAnalyte.currentTextChanged.connect(self.Plot_Sample)
+
 		self.chooseAnalyte.currentTextChanged.connect(self.Replicate_Plot_DF)
 		self.chooseAnalyte.currentTextChanged.connect(self.Plot_Replicate)
 		self.chooseAnalyte.currentTextChanged.connect(self.ms1_Plot_DF)
 		self.chooseAnalyte.currentTextChanged.connect(self.Plot_ms1)
+		self.chooseAnalyte.currentTextChanged.connect(self.Plot_Analyte_Legend)
 		self.chooseAnalyte.addItem('Sample Analyte ID')
 		self.chooseAnalyte.addItem('Replicate Analyte ID')
 		self.chooseAnalyte.addItem('Experiment Analyte ID')
@@ -715,6 +778,7 @@ class Window (QDialog):
 		self.resetRTButton.clicked.connect(self.Plot_Sample)
 		self.comboAnalyte.currentTextChanged.connect(self.Sample_Plot_DF)
 		self.comboAnalyte.currentTextChanged.connect(self.Plot_Sample)
+
 		self.comboAnalyte.currentTextChanged.connect(self.Plot_ms1)
 		# else:
 		# 	pass
@@ -742,6 +806,23 @@ class Window (QDialog):
 		# else:
 		# 	pass
 
+
+
+		self.Toggle_rt = QPushButton("Toggle Scatter Plot",self)
+		self.Toggle_rt.setCheckable(True)
+		self.Toggle_rt.clicked.connect(self.toggle_rt)
+		self.Toggle_rt.clicked.connect(self.Plot_Sample)
+		self.Toggle_rt.clicked.connect(self.Plot_Replicate)
+		self.Toggle_rt.setStyleSheet("background-color : lightgrey")
+
+
+
+		self.export_csv = QPushButton("Export CSV",self)
+		self.space_label1 = QLabel('')
+		layoutRegion10 = QGridLayout()
+
+		layoutRegion10.addWidget(self.export_csv,0,1)
+		layoutRegion10.addWidget(self.space_label1,0,0)
 ################ Center Left of interface (Region 3) ###################
 		
 
@@ -795,6 +876,9 @@ class Window (QDialog):
 		self.Nullbutton.clicked.connect(self.Plot_Sample)
 
 		self.Nullbutton.clicked.connect(self.Plot_Replicate)
+		self.Nullbutton.clicked.connect(self.Plot_Sample)
+		
+		self.Nullbutton.clicked.connect(self.Plot_Replicate)
 		self.Blankbutton.clicked.connect(self.Plot_Replicate)
 
 		self.Blankbutton.clicked.connect(self.Plot_Experiment)
@@ -843,8 +927,8 @@ class Window (QDialog):
 		layoutRegion4.addWidget(self.massCheckbox,12,1)
 
 		layoutRegion4.addWidget(self.Line4,11,0,1,3)
-		layoutRegion4.addWidget(self.resetButton,12,0)
-
+		layoutRegion4.addWidget(self.resetButton,13,0)
+		layoutRegion4.addWidget(self.Toggle_rt,12,0)
 
 
 
@@ -854,83 +938,94 @@ class Window (QDialog):
 		comboText = self.comboBox.currentText()
 
 
-################################################# Sample
-		self.mz_plot = pg.PlotWidget(self)
+################## Sample ###########################
+
+		self.mz_label1 = pg.LabelItem(justify='right')
+		self.mz_plot = MyPlotWidget()
 		
 		self.mz_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
-		self.mz_plot.setTitle(comboText)
+		
 		self.mz_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
-
+		self.mz_plot.setMouseEnabled(x=True, y=False)
 		self.mz_plot.setStyleSheet("background-color: white;  border:1px solid black")
 
-		self.rt_plot = pg.PlotWidget(self)
+
+
+
+
+		self.rt_plot = MyPlotWidget()
 		self.rt_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.rt_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
-		self.rt_plot.setTitle(comboText)
-		self.ms1_plot = pg.PlotWidget(self)
+		
+		self.rt_plot.setMouseEnabled(x=True, y=False)
+		self.ms1_plot = MyPlotWidget()
 		self.ms1_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.ms1_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'})
 		self.ms1_plot.setTitle("MS<sup>1</sup> Spectra")
 		self.ms1_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
-		self.ms2_plot = pg.PlotWidget(self)
+		self.ms1_plot.setMouseEnabled(x=True, y=False)
+		self.ms2_plot = MyPlotWidget()
 		self.ms2_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.ms2_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.ms2_plot.setTitle("MS<sup>2</sup> Spectra")
 		self.ms2_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
+		self.ms2_plot.setMouseEnabled(x=True, y=False)
 ################################################# Replicate
 
 ############# Replicate #############################
 
 
-		self.mz_r1_plot = pg.PlotWidget(self)
+		self.mz_r1_plot = MyPlotWidget()
 		self.mz_r1_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.mz_r1_plot.setTitle("Replicate 1 m/z vs intensity")
 		self.mz_r1_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_r1_plot.setLabel(axis='left',text='Intensity')
-		
-		self.mz_r2_plot = pg.PlotWidget(self)
+		self.mz_r1_plot.setMouseEnabled(x=True, y=False)
+		self.mz_r2_plot = MyPlotWidget()
 		self.mz_r2_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.mz_r2_plot.setTitle("Replicate 2 m/z vs intensity")
 		self.mz_r2_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_r2_plot.setLabel(axis='left',text='Intensity')
-		
-		self.mz_r3_plot = pg.PlotWidget(self)
+		self.mz_r2_plot.setMouseEnabled(x=True, y=False)
+		self.mz_r3_plot = MyPlotWidget()
 		self.mz_r3_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.mz_r3_plot.setTitle("Replicate 3 m/z vs intensity")
 		self.mz_r3_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_r3_plot.setLabel(axis='left',text='Intensity')
-
-		self.rt_r1_plot = pg.PlotWidget(self)
+		self.mz_r3_plot.setMouseEnabled(x=True, y=False)
+		self.rt_r1_plot = MyPlotWidget()
 		self.rt_r1_plot.setTitle("Replicate 1 rt vs intesnity")
 		self.rt_r1_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.rt_r1_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_r1_plot.setLabel(axis='left',text='Intensity')
-		
-		self.rt_r2_plot = pg.PlotWidget(self)
+		self.rt_r1_plot.setMouseEnabled(x=True, y=False)
+		self.rt_r2_plot = MyPlotWidget()
 		self.rt_r2_plot.setTitle("Replicate 2 rt vs intesnity")
 		self.rt_r2_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_r2_plot.setLabel(axis='left',text='Intensity')
 		self.rt_r2_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
-		self.rt_r3_plot = pg.PlotWidget(self)
+		self.rt_r2_plot.setMouseEnabled(x=True, y=False)
+		self.rt_r3_plot = MyPlotWidget()
 		self.rt_r3_plot.setTitle("Replicate 3 rt vs intesnity")
 		self.rt_r3_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_r3_plot.setLabel(axis='left',text='Intensity')
 		self.rt_r3_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
+		self.rt_r3_plot.setMouseEnabled(x=True, y=False)
 
 
 
-############# Experiment Blank On #############################
+############# Experiment and Diversity #############################
 
-		self.ex_bOn_plot = pg.PlotWidget(self)
+		self.ex_bOn_plot = MyPlotWidget()
 		self.ex_bOn_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 
 
 
 
 
-		self.div_plot = pg.PlotWidget(self)
+		self.div_plot = MyPlotWidget()
 		self.div_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		# self.ex_bOn_plot.move(20,250 + move_y)
 
@@ -952,6 +1047,18 @@ class Window (QDialog):
 		self.div_plot.setLabel(axis='bottom',text='Analyte ID')
 ##############################################################
 
+
+		self.analyte_legend = pg.PlotWidget(self)
+		self.analyte_legend.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
+		self.analyte_legend.hideAxis('left')
+		self.analyte_legend.hideAxis('bottom')
+		self.analyte_legend.setMouseEnabled(x=False, y=True)
+		layoutRegion9 = QGridLayout()
+
+		layoutRegion9.addWidget(self.analyte_legend,0,1)
+		# layoutRegion9.addWidget(self.s1,0,1)
+
+##############################################################
 		self.ms2analytelabel = QLabel(self)
 		pixmap = QPixmap('MS2Analyte_logo.png')
 
@@ -974,12 +1081,12 @@ class Window (QDialog):
 
 		
 
-		layoutRegion3.addWidget(self.mz_r1_plot,1,0)
-		layoutRegion3.addWidget(self.mz_r2_plot,2,0)
-		layoutRegion3.addWidget(self.mz_r3_plot,3,0)
-		layoutRegion3.addWidget(self.rt_r1_plot,4,0)
-		layoutRegion3.addWidget(self.rt_r2_plot,5,0)
-		layoutRegion3.addWidget(self.rt_r3_plot,6,0)
+		layoutRegion3.addWidget(self.mz_r1_plot,1,1)
+		layoutRegion3.addWidget(self.mz_r2_plot,2,1)
+		layoutRegion3.addWidget(self.mz_r3_plot,3,1)
+		layoutRegion3.addWidget(self.rt_r1_plot,4,1)
+		layoutRegion3.addWidget(self.rt_r2_plot,5,1)
+		layoutRegion3.addWidget(self.rt_r3_plot,6,1)
 
 		layoutRegion6 = QGridLayout()
 
@@ -1001,10 +1108,13 @@ class Window (QDialog):
 
 		# layoutMain.setSpacing(0)
 		layoutMain.addLayout(layoutRegion2,0,1, 1, 1, QtCore.Qt.AlignRight)
-		layoutMain.addLayout(layoutRegion7,0,2, QtCore.Qt.AlignCenter)
-		layoutMain.addLayout(layoutRegion4,1,2, 1, 1,QtCore.Qt.AlignTop)
+		layoutMain.addLayout(layoutRegion7,0,3, QtCore.Qt.AlignCenter)
+		layoutMain.addLayout(layoutRegion4,1,3, 1, 1,QtCore.Qt.AlignTop)
 		layoutMain.addLayout(layoutRegion6,1,0, 1,1)
 		layoutMain.addLayout(layoutRegion8,1,0, 1,1)
+
+		layoutMain.addLayout(layoutRegion9,1,2)
+		layoutMain.addLayout(layoutRegion10,2,1)
 ############################################################################
 
 
@@ -1022,12 +1132,16 @@ class Window (QDialog):
 ################### Plots #################################
 
 
+
+
 	def fill_combobox(self):
 
 		comboText = self.comboBox.currentText()
 		chooseAnalyte = self.chooseAnalyte.currentText()
 		total_df = import_dataframe(input_structure, input_type, comboText)
+		current_sample = Current_Sample(comboText)
 
+		
 		# sorted_df = total_df['analyte_id'].replace('',np.nan, inplace=True)
 		# sorted_df = total_df.dropna(subset=['analyte_id'],inplace=True)
 		# print(sorted_df)
@@ -1128,21 +1242,24 @@ class Window (QDialog):
 		else:
 			pass
 	def Plot_Sample(self):
-		
+		print('PLOT SAMPLE BEGIN')
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
 		Experiment_State = tab_state.return_experiment_state()
 		print('Loading Sample Tab')
-		
-
+		state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, 0, 7,self.Toggle_rt.isChecked())
+		Toggle_rt = state.return_Toggle_rt()
 
 		if Sample_State == False:
 			chooseAnalyte = self.chooseAnalyte.currentText()
 			self.mz_plot.disableAutoRange(axis=None)
 			self.rt_plot.disableAutoRange(axis=None)
 			comboAnalyte=self.comboAnalyte.currentText()
-		
+			comboText = self.comboBox.currentText()
+			self.mz_plot.setTitle(comboText)
+			self.rt_plot.setTitle(comboText)
+
 			print('Loading Sample Tab')
 			
 			############### Fetch data for mz_plot and plot sample from comboBox ###############
@@ -1150,11 +1267,23 @@ class Window (QDialog):
 			sorted_df_mz, sorted_df_rt= self.Sample_Plot_DF()
 
 
+
+
 			mz_array = []
 			analyte_mz_array = []
 			rt_array = []
 			analyte_rt_array = []
 
+
+
+
+
+
+
+
+
+				# df=df[df.scan == max_scan_value[0]]
+				# df.sort_values('scan', inplace=True)
 
 			if chooseAnalyte == "Sample Analyte ID":
 				for analyte_id in sorted_df_mz.analyte_id.unique():
@@ -1166,10 +1295,35 @@ class Window (QDialog):
 
 
 
-				for analyte_id in sorted_df_rt.analyte_id.unique():
-					rt_array.append([sorted_df_rt[sorted_df_rt["analyte_id"] == analyte_id]["rt"].to_numpy(),
-				                     sorted_df_rt[sorted_df_rt["analyte_id"] == analyte_id]["intensity"].to_numpy()])
-					analyte_rt_array.append(analyte_id)
+				if Toggle_rt == True:
+				
+
+					for analyte_id in sorted_df_rt.analyte_id.unique():
+						rt_array.append([sorted_df_rt[sorted_df_rt["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt[sorted_df_rt["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array.append(analyte_id)
+				else:
+
+
+
+					for analyte_id in sorted_df_rt.analyte_id.unique():
+
+						analyte_df = sorted_df_rt[sorted_df_rt.analyte_id == analyte_id]
+
+						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+
+						max_peak_id_array = max_scan_df.peak_id.to_numpy()
+						max_peak_id = int(max_peak_id_array[0])
+
+
+
+
+						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+
+						rt_array.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array.append(analyte_id)
 
 
 				analyte_mz_array = [0 if str(i) == 'nan' else i for i in analyte_mz_array]
@@ -1204,10 +1358,34 @@ class Window (QDialog):
 
 
 
-				for analyte_id in sorted_df_rt.replicate_analyte_id.unique():
-					rt_array.append([sorted_df_rt[sorted_df_rt["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
-				                     sorted_df_rt[sorted_df_rt["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
-					analyte_rt_array.append(analyte_id)
+				if Toggle_rt == True:
+				
+
+					for analyte_id in sorted_df_rt.analyte_id.unique():
+						rt_array.append([sorted_df_rt[sorted_df_rt["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt[sorted_df_rt["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array.append(analyte_id)
+				else:
+
+
+
+					for analyte_id in sorted_df_rt.analyte_id.unique():
+
+						analyte_df = sorted_df_rt[sorted_df_rt.analyte_id == analyte_id]
+
+						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+
+						max_peak_id_array = max_scan_df.peak_id.to_numpy()
+						max_peak_id = int(max_peak_id_array[0])
+
+
+
+						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+
+						rt_array.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array.append(analyte_id)
 
 
 				analyte_mz_array = [0 if str(i) == 'nan' else i for i in analyte_mz_array]
@@ -1248,10 +1426,36 @@ class Window (QDialog):
 
 
 
-				for analyte_id in sorted_df_rt.experiment_analyte_id.unique():
-					rt_array.append([sorted_df_rt[sorted_df_rt["experiment_analyte_id"] == analyte_id]["rt"].to_numpy(),
-				                     sorted_df_rt[sorted_df_rt["experiment_analyte_id"] == analyte_id]["intensity"].to_numpy()])
-					analyte_rt_array.append(analyte_id)
+				if Toggle_rt == True:
+				
+
+					for analyte_id in sorted_df_rt.analyte_id.unique():
+						rt_array.append([sorted_df_rt[sorted_df_rt["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt[sorted_df_rt["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array.append(analyte_id)
+				else:
+
+
+
+					for analyte_id in sorted_df_rt.analyte_id.unique():
+
+						analyte_df = sorted_df_rt[sorted_df_rt.analyte_id == analyte_id]
+
+						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+
+						max_peak_id_array = max_scan_df.peak_id.to_numpy()
+						max_peak_id = int(max_peak_id_array[0])
+
+
+						# print(analyte_df.peak_id)
+
+
+						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+
+						rt_array.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array.append(analyte_id)
 
 
 				analyte_mz_array = [0 if str(i) == 'nan' else i for i in analyte_mz_array]
@@ -1287,73 +1491,138 @@ class Window (QDialog):
 			self.rt_plot.clear()
 			self.mz_plot.clear()
 
-			if comboAnalyte != "Show All":
-				alpha=1
-				print('Loading Sample Tab..')
-
-				colour=0
-				for analyte in mz_array:
 
 
-					#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],hues=20,values=5,alpha=alpha),symbol='o', symbolSize=3)
-					#colour+=1
+			if Toggle_rt == False:
+				if comboAnalyte != "Show All":
+					alpha=1
+					print('Loading Sample Tab..')
 
-					if analyte_mz_array[colour] == float(comboAnalyte):
+					colour=0
+					for analyte in mz_array:
 
 
-						self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour], hues=20, values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],hues=20,values=5,alpha=255),symbol='o', symbolSize=4)
+						#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						#colour+=1
+
+						if analyte_mz_array[colour] == float(comboAnalyte):
+
+
+							self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+
+						else:
+							pass
+
+
+						self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
 						
-					else:
-						pass
+						colour+=1
+
+					colour=0
+					for analyte in rt_array:
 
 
-					self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],hues=20,values=5,alpha=alpha),symbol='o', symbolSize=3)
-					
-					colour+=1
-
-				colour=0
-				for analyte in rt_array:
+						if analyte_rt_array[colour] == float(comboAnalyte):
 
 
-					if analyte_rt_array[colour] == float(comboAnalyte):
+							self.rt_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3,pen=pg.intColor(analyte_colour_rt_array[colour], values=5,alpha=255),brush=pg.intColor(analyte_colour_rt_array[colour], alpha=50))
+							
+
+						else:
+							pass
+
+						self.rt_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3,pen=pg.intColor(analyte_colour_rt_array[colour], values=5,alpha=alpha),brush=pg.intColor(analyte_colour_rt_array[colour], alpha=alpha))
+						colour+=1
 
 
-						self.rt_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array[colour], hues=20, values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_rt_array[colour], hues=20,values=5, alpha=255),symbol='o', symbolSize=4)
+					print('Loading Sample Tab...')
+				else:
+					alpha=255
+					colour=0
+					for analyte in mz_array:
+
+
+						self.test = self.mz_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5),symbol='o', symbolSize=3)
+						#test.setAlpha(0, False)
+						colour+=1
+					colour=0
+					for analyte in rt_array:
+
+
+
+
+
 						
-
-					else:
-						pass
-
-					self.rt_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_rt_array[colour], hues=20,values=5, alpha=alpha),symbol='o', symbolSize=3)
-					colour+=1
+						self.rt_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3, pen=pg.intColor(analyte_colour_rt_array[colour], values=5),brush=pg.intColor(analyte_colour_rt_array[colour], alpha=50))
+						colour+=1
+					print('Loading Sample Tab...')
 
 
-				print('Loading Sample Tab...')
+
+
 			else:
-				alpha=255
-				colour=0
-				for analyte in mz_array:
+				if comboAnalyte != "Show All":
+					alpha=1
+					print('Loading Sample Tab..')
+
+					colour=0
+					for analyte in mz_array:
 
 
-					self.test = self.mz_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],hues=20,values=5),symbol='o', symbolSize=3)
-					#test.setAlpha(0, False)
-					colour+=1
-				colour=0
-				for analyte in rt_array:
+						#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						#colour+=1
+
+						if analyte_mz_array[colour] == float(comboAnalyte):
+
+
+							self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+
+						else:
+							pass
+
+
+						self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						
+						colour+=1
+
+					colour=0
+					for analyte in rt_array:
+
+
+						if analyte_rt_array[colour] == float(comboAnalyte):
+
+
+							self.rt_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_rt_array[colour], values=5, alpha=255),symbol='o', symbolSize=3)
+							
+
+						else:
+							pass
+
+						self.rt_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_rt_array[colour], values=5, alpha=alpha),symbol='o', symbolSize=3)
+						colour+=1
+
+
+					print('Loading Sample Tab...')
+				else:
+					alpha=255
+					colour=0
+					for analyte in mz_array:
+
+
+						self.test = self.mz_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5),symbol='o', symbolSize=3)
+						#test.setAlpha(0, False)
+						colour+=1
+					colour=0
+					for analyte in rt_array:
 
 
 
 
 
-					self.rt_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_rt_array[colour], hues=20,values=5),symbol='o', symbolSize=3)
-					colour+=1
-				print('Loading Sample Tab...')
+						self.rt_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_rt_array[colour], values=5),symbol='o', symbolSize=3)
 
-			############### Fetch data for rt plot and plot sample from comboBox ###############
-
-
-
-
+						colour+=1
+					print('Loading Sample Tab...')
 			
 
 
@@ -1368,31 +1637,39 @@ class Window (QDialog):
 
 			self.mz_plot.enableAutoRange(axis=None)
 			self.rt_plot.enableAutoRange(axis=None)
-			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text())
+			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text(), self.Toggle_rt.isChecked())
 
 			self.mz_plot.setXRange(float(state.return_massMin_state()),float(state.return_massMax_state()))
 			self.rt_plot.setXRange(float(state.return_rtMin_state()),float(state.return_rtMax_state()))
 		else:
 			pass
 
+
+
+
+
+
+
+
+
 		print('Sample Tab Loaded Succesfully')
 
 
 ##################################################################################################################	
-
+		print('PLOT SAMPLE END')
 		return 
-		
+
 
 	def Plot_Replicate(self):
+		print('PLOT REPLICATE BEGIN')
 		print('Loading Replicate Tab')
 		chooseAnalyte = self.chooseAnalyte.currentText()
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
 		Experiment_State = tab_state.return_experiment_state()
-		print(Replicate_State)
-		print(Sample_State)
-		print(Experiment_State)
+		state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, 0, 7,self.Toggle_rt.isChecked())
+		Toggle_rt = state.return_Toggle_rt()
 
 
 		print('Loading Replicate Tab')
@@ -1421,7 +1698,10 @@ class Window (QDialog):
 
 
 			if chooseAnalyte == "Sample Analyte ID":
-				print('Loading Replicate Tab')
+
+
+
+				print('Loading Replicate Tab for Sample Analyte ID')
 				for analyte_id in sorted_df_mz_r1.analyte_id.unique():
 
 					mz_array_r1.append([sorted_df_mz_r1[sorted_df_mz_r1["analyte_id"] == analyte_id]["mz"].to_numpy(),
@@ -1434,12 +1714,39 @@ class Window (QDialog):
 
 
 
-				for analyte_id in sorted_df_rt_r1.analyte_id.unique():
-					rt_array_r1.append([sorted_df_rt_r1[sorted_df_rt_r1["analyte_id"] == analyte_id]["rt"].to_numpy(),
-				                     sorted_df_rt_r1[sorted_df_rt_r1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
-					analyte_rt_array_r1.append(analyte_id)
+				if Toggle_rt == True:
+				
+					print('HERE')
+					for analyte_id in sorted_df_rt_r1.analyte_id.unique():
+						rt_array_r1.append([sorted_df_rt_r1[sorted_df_rt_r1["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt_r1[sorted_df_rt_r1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r1.append(analyte_id)
+
+				else:
+
+					
+
+					for analyte_id in sorted_df_rt_r1.analyte_id.unique():
+
+						analyte_df = sorted_df_rt_r1[sorted_df_rt_r1.analyte_id == analyte_id]
+
+						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+
+						max_peak_id_array = max_scan_df.peak_id.to_numpy()
+						max_peak_id = int(max_peak_id_array[0])
 
 
+
+
+						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+
+						rt_array_r1.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+
+						analyte_rt_array_r1.append(analyte_id)
+
+				
 				analyte_mz_array_r1 = [0 if str(i) == 'nan' else i for i in analyte_mz_array_r1]
 
 				analyte_rt_array_r1 = [0 if str(i) == 'nan' else i for i in analyte_rt_array_r1]
@@ -1464,7 +1771,7 @@ class Window (QDialog):
 
 
 			if chooseAnalyte == "Replicate Analyte ID":
-				print('Loading Replicate Tab')
+				print('Loading Replicate Tab for Replicate Analyte ID')
 				for analyte_id in sorted_df_mz_r1.replicate_analyte_id.unique():
 
 					mz_array_r1.append([sorted_df_mz_r1[sorted_df_mz_r1["replicate_analyte_id"] == analyte_id]["mz"].to_numpy(),
@@ -1475,12 +1782,45 @@ class Window (QDialog):
 
 
 
-				print('Loading Replicate Tab')
+				print('Loading Replicate Tab for Replicate Analyte ID')
 
-				for analyte_id in sorted_df_rt_r1.replicate_analyte_id.unique():
-					rt_array_r1.append([sorted_df_rt_r1[sorted_df_rt_r1["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
-				                     sorted_df_rt_r1[sorted_df_rt_r1["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
-					analyte_rt_array_r1.append(analyte_id)
+				if Toggle_rt == True:
+					print('HERE')
+
+					for analyte_id in sorted_df_rt_r1.replicate_analyte_id.unique():
+						rt_array_r1.append([sorted_df_rt_r1[sorted_df_rt_r1["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt_r1[sorted_df_rt_r1["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r1.append(analyte_id)
+				else:
+
+					print('HERE')
+
+					for analyte_id in sorted_df_rt_r1.replicate_analyte_id.unique():
+						if analyte_id != None:
+							print('HERE')
+
+							analyte_df = sorted_df_rt_r1[sorted_df_rt_r1.replicate_analyte_id == analyte_id]
+							print('HERE')
+
+							max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+							print('HERE')
+							max_peak_id_array = max_scan_df.peak_id.to_numpy()
+							print('HERE')
+
+							max_peak_id = int(max_peak_id_array[0])
+							print('HERE')
+
+
+
+							sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+		
+							rt_array_r1.append([sorted_df_rt1[sorted_df_rt1["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
+						                     sorted_df_rt1[sorted_df_rt1["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
+							analyte_rt_array_r1.append(analyte_id)
+						else:
+							pass
+
 
 
 				analyte_mz_array_r1 = [0 if str(i) == 'nan' else i for i in analyte_mz_array_r1]
@@ -1518,66 +1858,135 @@ class Window (QDialog):
 			self.rt_r1_plot.clear()
 			self.mz_r1_plot.clear()
 
-			if comboAnalyte != "Show All":
-				print('Loading Replicate Tab')
-				alpha=1
-
-
-				colour=0
-				for analyte in mz_array_r1:
 
 
 
-					if analyte_mz_array_r1[colour] == float(comboAnalyte):
+			if Toggle_rt == False:
 
 
-						self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour], hues=20, values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],hues=20,values=5,alpha=255),symbol='o', symbolSize=4)
+
+				if comboAnalyte != "Show All":
+					print('Loading Replicate Tab')
+					alpha=1
+
+
+					colour=0
+					for analyte in mz_array_r1:
+
+
+
+						if analyte_mz_array_r1[colour] == float(comboAnalyte):
+
+
+							self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							
+						else:
+							pass
+
+
+						self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
 						
-					else:
-						pass
+						colour+=1
+
+					colour=0
+					for analyte in rt_array_r1:
 
 
-					self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],hues=20,values=5,alpha=alpha),symbol='o', symbolSize=3)
-					
-					colour+=1
-
-				colour=0
-				for analyte in rt_array_r1:
+						if analyte_rt_array_r1[colour] == float(comboAnalyte):
 
 
-					if analyte_rt_array_r1[colour] == float(comboAnalyte):
+							self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3,  pen=pg.intColor(analyte_colour_rt_array_r1[colour],  values=5, alpha=255) ,brush=pg.intColor(analyte_colour_rt_array_r1[colour], alpha=50))
+							
 
+						else:
+							pass
 
-						self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r1[colour], hues=20, values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_rt_array_r1[colour], hues=20,values=5, alpha=255),symbol='o', symbolSize=4)
-						
-
-					else:
-						pass
-
-					self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r1[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_rt_array_r1[colour], hues=20,values=5, alpha=alpha),symbol='o', symbolSize=3)
-					colour+=1
+						self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3, pen=pg.intColor(analyte_colour_rt_array_r1[colour],  values=5, alpha=alpha),brush=pg.intColor(analyte_colour_rt_array_r1[colour], alpha=alpha))
+						colour+=1
 
 
 
+				else:
+					alpha=255
+					colour=0
+					for analyte in mz_array_r1:
+
+
+						self.test = self.mz_r1_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5),symbol='o', symbolSize=3)
+						#test.setAlpha(0, False)
+						colour+=1
+					colour=0
+					for analyte in rt_array_r1:
+
+
+
+
+
+						self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3, pen=pg.intColor(analyte_colour_rt_array_r1[colour],  values=5),brush=pg.intColor(analyte_colour_rt_array_r1[colour], alpha=50))
+						colour+=1
+					print('Loading Replicate Tab')
 			else:
-				alpha=255
-				colour=0
-				for analyte in mz_array_r1:
+
+				if comboAnalyte != "Show All":
+					print('Loading Replicate Tab')
+					alpha=1
 
 
-					self.test = self.mz_r1_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],hues=20,values=5),symbol='o', symbolSize=3)
-					#test.setAlpha(0, False)
-					colour+=1
-				colour=0
-				for analyte in rt_array_r1:
-
+					colour=0
+					for analyte in mz_array_r1:
 
 
 
+						if analyte_mz_array_r1[colour] == float(comboAnalyte):
 
-					self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r1[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_rt_array_r1[colour], hues=20,values=5),symbol='o', symbolSize=3)
-					colour+=1
-				print('Loading Replicate Tab')
+
+							self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							
+						else:
+							pass
+
+
+						self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						
+						colour+=1
+
+					colour=0
+					for analyte in rt_array_r1:
+
+
+						if analyte_rt_array_r1[colour] == float(comboAnalyte):
+
+
+							self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r1[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_rt_array_r1[colour], values=5, alpha=255),symbol='o', symbolSize=3)
+							
+
+						else:
+							pass
+
+						self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r1[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_rt_array_r1[colour], values=5, alpha=alpha),symbol='o', symbolSize=3)
+						colour+=1
+
+
+
+				else:
+					alpha=255
+					colour=0
+					for analyte in mz_array_r1:
+
+
+						self.test = self.mz_r1_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5),symbol='o', symbolSize=3)
+						#test.setAlpha(0, False)
+						colour+=1
+					colour=0
+					for analyte in rt_array_r1:
+
+
+
+
+
+						self.rt_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r1[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_rt_array_r1[colour], values=5),symbol='o', symbolSize=3)
+						colour+=1
+					print('Loading Replicate Tab')
 
 			############### Fetch data for rt plot and plot sample from comboBox ###############
 
@@ -1603,10 +2012,36 @@ class Window (QDialog):
 
 
 
-				for analyte_id in sorted_df_rt_r2.analyte_id.unique():
-					rt_array_r2.append([sorted_df_rt_r2[sorted_df_rt_r2["analyte_id"] == analyte_id]["rt"].to_numpy(),
-				                     sorted_df_rt_r2[sorted_df_rt_r2["analyte_id"] == analyte_id]["intensity"].to_numpy()])
-					analyte_rt_array_r2.append(analyte_id)
+				if Toggle_rt == True:
+				
+
+					for analyte_id in sorted_df_rt_r1.analyte_id.unique():
+						rt_array_r2.append([sorted_df_rt_r2[sorted_df_rt_r2["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt_r2[sorted_df_rt_r2["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r2.append(analyte_id)
+				else:
+
+
+
+					for analyte_id in sorted_df_rt_r2.analyte_id.unique():
+
+						analyte_df = sorted_df_rt_r2[sorted_df_rt_r2.analyte_id == analyte_id]
+
+						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+
+						max_peak_id_array = max_scan_df.peak_id.to_numpy()
+						max_peak_id = int(max_peak_id_array[0])
+
+
+	
+
+
+						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+
+						rt_array_r2.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r2.append(analyte_id)
 
 
 				analyte_mz_array_r2 = [0 if str(i) == 'nan' else i for i in analyte_mz_array_r2]
@@ -1645,10 +2080,35 @@ class Window (QDialog):
 
 
 
-				for analyte_id in sorted_df_rt_r2.replicate_analyte_id.unique():
-					rt_array_r2.append([sorted_df_rt_r2[sorted_df_rt_r2["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
-				                     sorted_df_rt_r2[sorted_df_rt_r2["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
-					analyte_rt_array_r2.append(analyte_id)
+				if Toggle_rt == True:
+				
+
+					for analyte_id in sorted_df_rt_r1.analyte_id.unique():
+						rt_array_r2.append([sorted_df_rt_r2[sorted_df_rt_r2["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt_r2[sorted_df_rt_r2["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r2.append(analyte_id)
+				else:
+
+
+
+					for analyte_id in sorted_df_rt_r2.analyte_id.unique():
+
+						analyte_df = sorted_df_rt_r2[sorted_df_rt_r2.analyte_id == analyte_id]
+
+						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+
+						max_peak_id_array = max_scan_df.peak_id.to_numpy()
+						max_peak_id = int(max_peak_id_array[0])
+
+
+
+
+						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+	
+						rt_array_r2.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r2.append(analyte_id)
 
 
 				analyte_mz_array_r2 = [0 if str(i) == 'nan' else i for i in analyte_mz_array_r2]
@@ -1682,67 +2142,142 @@ class Window (QDialog):
 			self.rt_r2_plot.clear()
 			self.mz_r2_plot.clear()
 			print('Loading Replicate Tab')
-			if comboAnalyte != "Show All":
-				print('Loading Replicate Tab')
-				alpha=1
 
 
-				colour=0
-				for analyte in mz_array_r2:
+			if Toggle_rt == False:
 
 
-					#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],hues=20,values=5,alpha=alpha),symbol='o', symbolSize=3)
-					#colour+=1
 
-					if analyte_mz_array_r2[colour] == float(comboAnalyte):
+				if comboAnalyte != "Show All":
+					print('Loading Replicate Tab')
+					alpha=1
 
 
-						self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour], hues=20, values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],hues=20,values=5,alpha=255),symbol='o', symbolSize=4)
+					colour=0
+					for analyte in mz_array_r2:
+
+
+						#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						#colour+=1
+
+						if analyte_mz_array_r2[colour] == float(comboAnalyte):
+
+
+							self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							
+						else:
+							pass
+
+
+						self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
 						
-					else:
-						pass
+						colour+=1
+
+					colour=0
+					for analyte in rt_array_r2:
 
 
-					self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],hues=20,values=5,alpha=alpha),symbol='o', symbolSize=3)
-					
-					colour+=1
-
-				colour=0
-				for analyte in rt_array_r2:
+						if analyte_rt_array_r2[colour] == float(comboAnalyte):
 
 
-					if analyte_rt_array_r2[colour] == float(comboAnalyte):
+							self.rt_r2_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3, pen=pg.intColor(analyte_colour_rt_array_r2[colour],  values=5, alpha=255),brush=pg.intColor(analyte_colour_rt_array_r2[colour], alpha=50))
+							
+
+						else:
+							pass
+
+						self.rt_r2_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3, pen=pg.intColor(analyte_colour_rt_array_r2[colour],  values=5, alpha=alpha),brush=pg.intColor(analyte_colour_rt_array_r2[colour], alpha=alpha))
+						colour+=1
 
 
-						self.rt_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r2[colour], hues=20, values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_rt_array_r2[colour], hues=20,values=5, alpha=255),symbol='o', symbolSize=4)
-						
-
-					else:
-						pass
-
-					self.rt_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r2[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_rt_array_r2[colour], hues=20,values=5, alpha=alpha),symbol='o', symbolSize=3)
-					colour+=1
+					print('Loading Replicate Tab')
+				else:
+					alpha=255
+					colour=0
+					for analyte in mz_array_r2:
 
 
-				print('Loading Replicate Tab')
+						self.test = self.mz_r2_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5),symbol='o', symbolSize=3)
+						#test.setAlpha(0, False)
+						colour+=1
+					colour=0
+					for analyte in rt_array_r2:
+
+
+
+
+
+						self.rt_r2_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3, pen=pg.intColor(analyte_colour_rt_array_r2[colour],  values=5),brush=pg.intColor(analyte_colour_rt_array_r2[colour], alpha=50))
+						colour+=1
 			else:
-				alpha=255
-				colour=0
-				for analyte in mz_array_r2:
-
-
-					self.test = self.mz_r2_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],hues=20,values=5),symbol='o', symbolSize=3)
-					#test.setAlpha(0, False)
-					colour+=1
-				colour=0
-				for analyte in rt_array_r2:
 
 
 
 
+				if comboAnalyte != "Show All":
+						print('Loading Replicate Tab')
+						alpha=1
 
-					self.rt_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r2[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_rt_array_r2[colour], hues=20,values=5),symbol='o', symbolSize=3)
-					colour+=1
+
+						colour=0
+						for analyte in mz_array_r2:
+
+
+							#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+							#colour+=1
+
+							if analyte_mz_array_r2[colour] == float(comboAnalyte):
+
+
+								self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+								
+							else:
+								pass
+
+
+							self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+							
+							colour+=1
+
+						colour=0
+						for analyte in rt_array_r2:
+
+
+							if analyte_rt_array_r2[colour] == float(comboAnalyte):
+
+
+								self.rt_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r2[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_rt_array_r2[colour], values=5, alpha=255),symbol='o', symbolSize=3)
+								
+
+							else:
+								pass
+
+							self.rt_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r2[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_rt_array_r2[colour], values=5, alpha=alpha),symbol='o', symbolSize=3)
+							colour+=1
+
+
+						print('Loading Replicate Tab')
+				else:
+
+
+
+					alpha=255
+					colour=0
+					for analyte in mz_array_r2:
+
+
+						self.test = self.mz_r2_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5),symbol='o', symbolSize=3)
+						#test.setAlpha(0, False)
+						colour+=1
+					colour=0
+					for analyte in rt_array_r2:
+
+
+
+
+
+						self.rt_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r2[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_rt_array_r2[colour], values=5),symbol='o', symbolSize=3)
+						colour+=1
 
 
 
@@ -1751,6 +2286,11 @@ class Window (QDialog):
 			rt_array_r3 = []
 			analyte_rt_array_r3 = []
 			print('Loading Replicate Tab')
+
+
+
+
+
 			if chooseAnalyte == "Sample Analyte ID":
 				print('Loading Replicate Tab')
 				for analyte_id in sorted_df_mz_r3.analyte_id.unique():
@@ -1765,10 +2305,35 @@ class Window (QDialog):
 
 
 
-				for analyte_id in sorted_df_rt_r3.analyte_id.unique():
-					rt_array_r3.append([sorted_df_rt_r3[sorted_df_rt_r3["analyte_id"] == analyte_id]["rt"].to_numpy(),
-				                     sorted_df_rt_r3[sorted_df_rt_r3["analyte_id"] == analyte_id]["intensity"].to_numpy()])
-					analyte_rt_array_r3.append(analyte_id)
+				if Toggle_rt == True:
+				
+
+					for analyte_id in sorted_df_rt_r3.analyte_id.unique():
+						rt_array_r3.append([sorted_df_rt_r3[sorted_df_rt_r3["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt_r3[sorted_df_rt_r3["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r3.append(analyte_id)
+				else:
+
+
+
+					for analyte_id in sorted_df_rt_r3.analyte_id.unique():
+
+						analyte_df = sorted_df_rt_r3[sorted_df_rt_r3.analyte_id == analyte_id]
+
+						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+
+						max_peak_id_array = max_scan_df.peak_id.to_numpy()
+						max_peak_id = int(max_peak_id_array[0])
+
+	
+
+
+						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+	
+						rt_array_r3.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r3.append(analyte_id)
 
 
 				analyte_mz_array_r3 = [0 if str(i) == 'nan' else i for i in analyte_mz_array_r3]
@@ -1794,6 +2359,9 @@ class Window (QDialog):
 
 
 			if chooseAnalyte == "Replicate Analyte ID":
+
+
+
 				for analyte_id in sorted_df_mz_r3.replicate_analyte_id.unique():
 
 					mz_array_r3.append([sorted_df_mz_r3[sorted_df_mz_r3["replicate_analyte_id"] == analyte_id]["mz"].to_numpy(),
@@ -1806,10 +2374,35 @@ class Window (QDialog):
 
 				print('Loading Replicate Tab')
 
-				for analyte_id in sorted_df_rt_r3.replicate_analyte_id.unique():
-					rt_array_r3.append([sorted_df_rt_r3[sorted_df_rt_r3["replicate_analyte_id"] == analyte_id]["rt"].to_numpy(),
-				                     sorted_df_rt_r3[sorted_df_rt_r3["replicate_analyte_id"] == analyte_id]["intensity"].to_numpy()])
-					analyte_rt_array_r3.append(analyte_id)
+				if Toggle_rt == True:
+				
+
+					for analyte_id in sorted_df_rt_r3.analyte_id.unique():
+						rt_array_r3.append([sorted_df_rt_r3[sorted_df_rt_r3["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt_r3[sorted_df_rt_r3["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r3.append(analyte_id)
+				else:
+
+
+
+					for analyte_id in sorted_df_rt_r3.analyte_id.unique():
+
+						analyte_df = sorted_df_rt_r3[sorted_df_rt_r3.analyte_id == analyte_id]
+
+						max_scan_df = analyte_df[analyte_df.intensity == analyte_df.intensity.max()]
+
+						max_peak_id_array = max_scan_df.peak_id.to_numpy()
+						max_peak_id = int(max_peak_id_array[0])
+
+	
+
+
+						sorted_df_rt1 = analyte_df[analyte_df.peak_id == int(max_peak_id)]
+
+	
+						rt_array_r3.append([sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["rt"].to_numpy(),
+					                     sorted_df_rt1[sorted_df_rt1["analyte_id"] == analyte_id]["intensity"].to_numpy()])
+						analyte_rt_array_r3.append(analyte_id)
 
 
 				analyte_mz_array_r3 = [0 if str(i) == 'nan' else i for i in analyte_mz_array_r3]
@@ -1842,67 +2435,133 @@ class Window (QDialog):
 			self.rt_r3_plot.clear()
 			self.mz_r3_plot.clear()
 			print('Loading Replicate Tab')
-			if comboAnalyte != "Show All":
-				print('Loading Replicate Tab')
-				alpha=1
 
 
-				colour=0
-				for analyte in mz_array_r3:
+
+			if Toggle_rt == False:
+				if comboAnalyte != "Show All":
+					print('Loading Replicate Tab')
+					alpha=1
 
 
-					#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],hues=20,values=5,alpha=alpha),symbol='o', symbolSize=3)
-					#colour+=1
-
-					if analyte_mz_array_r3[colour] == float(comboAnalyte):
+					colour=0
+					for analyte in mz_array_r3:
 
 
-						self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour], hues=20, values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],hues=20,values=5,alpha=255),symbol='o', symbolSize=4)
+						#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						#colour+=1
+
+						if analyte_mz_array_r3[colour] == float(comboAnalyte):
+
+
+							self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							
+						else:
+							pass
+
+
+						self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
 						
-					else:
-						pass
+						colour+=1
+
+					colour=0
+					for analyte in rt_array_r3:
 
 
-					self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],hues=20,values=5,alpha=alpha),symbol='o', symbolSize=3)
-					
-					colour+=1
-
-				colour=0
-				for analyte in rt_array_r3:
+						if analyte_rt_array_r3[colour] == float(comboAnalyte):
 
 
-					if analyte_rt_array_r3[colour] == float(comboAnalyte):
+							self.rt_r3_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3, pen=pg.intColor(analyte_colour_rt_array_r3[colour],  values=5, alpha=255),brush=pg.intColor(analyte_colour_rt_array_r3[colour], alpha=50))
+							
 
+						else:
+							pass
 
-						self.rt_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r3[colour], hues=20, values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_rt_array_r3[colour], hues=20,values=5, alpha=255),symbol='o', symbolSize=4)
-						
-
-					else:
-						pass
-
-					self.rt_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r3[colour], hues=20, values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_rt_array_r3[colour], hues=20,values=5, alpha=alpha),symbol='o', symbolSize=3)
-					colour+=1
+						self.rt_r3_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3, pen=pg.intColor(analyte_colour_rt_array_r3[colour],  values=5, alpha=alpha),brush=pg.intColor(analyte_colour_rt_array_r3[colour], alpha=alpha))
+						colour+=1
 
 
 
+				else:
+					alpha=255
+					colour=0
+					for analyte in mz_array_r3:
+
+
+						self.test = self.mz_r3_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5),symbol='o', symbolSize=3)
+						#test.setAlpha(0, False)
+						colour+=1
+					colour=0
+					for analyte in rt_array_r3:
+
+
+
+
+
+						self.rt_r3_plot.plot( x=analyte[0], y=analyte[1], fillLevel=-0.3, pen=pg.intColor(analyte_colour_rt_array_r3[colour],  values=5),brush=pg.intColor(analyte_colour_rt_array_r3[colour], alpha=50))
+						colour+=1
 			else:
-				alpha=255
-				colour=0
-				for analyte in mz_array_r3:
+				if comboAnalyte != "Show All":
+						print('Loading Replicate Tab')
+						alpha=1
 
 
-					self.test = self.mz_r3_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],hues=20,values=5),symbol='o', symbolSize=3)
-					#test.setAlpha(0, False)
-					colour+=1
-				colour=0
-				for analyte in rt_array_r3:
+						colour=0
+						for analyte in mz_array_r3:
+
+
+							#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+							#colour+=1
+
+							if analyte_mz_array_r3[colour] == float(comboAnalyte):
+
+
+								self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+								
+							else:
+								pass
+
+
+							self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+							
+							colour+=1
+
+						colour=0
+						for analyte in rt_array_r3:
+
+
+							if analyte_rt_array_r3[colour] == float(comboAnalyte):
+
+
+								self.rt_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r3[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_rt_array_r3[colour], values=5, alpha=255),symbol='o', symbolSize=3)
+								
+
+							else:
+								pass
+
+							self.rt_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r3[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_rt_array_r3[colour], values=5, alpha=alpha),symbol='o', symbolSize=3)
+							colour+=1
+
+
+
+				else:
+					alpha=255
+					colour=0
+					for analyte in mz_array_r3:
+
+
+						self.test = self.mz_r3_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5),symbol='o', symbolSize=3)
+						#test.setAlpha(0, False)
+						colour+=1
+					colour=0
+					for analyte in rt_array_r3:
 
 
 
 
 
-					self.rt_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r3[colour], hues=20, values=5), symbolBrush=pg.intColor( analyte_colour_rt_array_r3[colour], hues=20,values=5),symbol='o', symbolSize=3)
-					colour+=1
+						self.rt_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor(analyte_colour_rt_array_r3[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_rt_array_r3[colour], values=5),symbol='o', symbolSize=3)
+						colour+=1
 			#analyte_array[0] = 0
 			#print(analyte_array)
 
@@ -1922,7 +2581,7 @@ class Window (QDialog):
 			self.rt_r1_plot.enableAutoRange(axis=None)
 			self.rt_r2_plot.enableAutoRange(axis=None)
 			self.rt_r3_plot.enableAutoRange(axis=None)
-			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text())
+			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text(),self.Toggle_rt.isChecked())
 
 			self.mz_r1_plot.setXRange(float(state.return_massMin_state()),float(state.return_massMax_state()))
 			self.mz_r2_plot.setXRange(float(state.return_massMin_state()),float(state.return_massMax_state()))
@@ -1933,10 +2592,11 @@ class Window (QDialog):
 		else:
 			pass
 		print('Replicate Tab Loaded Succesfully')
+		print('PLOT REPLICATE END')
 		return
 
 	def Plot_Experiment(self):
-
+		print('PLOT EXPERIMENT BEGIN')
 		# self.ex_bOn_plot.setYRange(min=-20,max=1)
 		# self.ex_bOn_plot.setXRange(min=100,max=1200)
 		self.ex_bOn_plot.disableAutoRange(axis=None)
@@ -1968,7 +2628,7 @@ class Window (QDialog):
 					experiment_array_BOn.append([experiment_sample_df[experiment_sample_df["experiment_analyte_id"] == experiment_analyte_id]["experiment_analyte_max_mass"].to_numpy(), 
 									experiment_sample_df[experiment_sample_df["experiment_analyte_id"] == experiment_analyte_id]["sample_analyte_max_intensity"].to_numpy()])
 					analyte_array.append(experiment_analyte_id)
-					print(experiment_analyte_id)
+
 				
 				analyte_array = [0 if str(z) == 'nan' else z for z in analyte_array]
 
@@ -1999,7 +2659,7 @@ class Window (QDialog):
 						max_int = max(analyte[1])
 
 
-						test = self.ex_bOn_plot.plot(title= "Test", x=x, y=y, pen=None, symbolPen=pg.intColor(analyte_colour_array[colour], hues=20, values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],hues=20,values=5),symbol='o', symbolSize= 10)
+						test = self.ex_bOn_plot.plot(title= "Test", x=x, y=y, pen=None, symbolPen=pg.intColor(analyte_colour_array[colour],  values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],values=5),symbol='o', symbolSize= 10)
 						min_int = 50000
 						int_x=40
 						if max_int < min_int:
@@ -2021,7 +2681,7 @@ class Window (QDialog):
 						if analyte_array[colour] == float(comboAnalyte):
 
 
-							test = self.ex_bOn_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour], hues=20, values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],hues=20,values=5),symbol='o', symbolSize= 10)
+							test = self.ex_bOn_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour],  values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],values=5),symbol='o', symbolSize= 10)
 							min_int = 50000
 							int_x=40
 							if max_int < min_int:
@@ -2030,7 +2690,7 @@ class Window (QDialog):
 								test.setSymbolSize((max_int/230000)*4)
 						else:
 							pass
-						test = self.ex_bOn_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour], hues=20, values=5, alpha = alpha), symbolBrush=pg.intColor(analyte_colour_array[colour],hues=20,values=5, alpha = alpha),symbol='o', symbolSize= 10)
+						test = self.ex_bOn_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour],  values=5, alpha = alpha), symbolBrush=pg.intColor(analyte_colour_array[colour],values=5, alpha = alpha),symbol='o', symbolSize= 10)
 						min_int = 50000
 						int_x=40
 						if max_int < min_int:
@@ -2056,7 +2716,13 @@ class Window (QDialog):
 			pass
 
 		self.ex_bOn_plot.enableAutoRange(axis=None)
+		print('PLOT EXPERIMENT END')
+
+
+
+
 	def Plot_Diversity(self):
+		print('PLOT DIVERSITY BEGIN')
 		print('Loading Diversity Tab')
 		# self.div_plot.setYRange(min=-20,max=1)
 		# self.div_plot.setXRange(min=0,max=140)
@@ -2072,7 +2738,7 @@ class Window (QDialog):
 			comboAnalyte=self.comboAnalyte.currentText()
 
 			print('Loading Diversity Tab')
-
+			print('Importing DataFrame')
 			samples, experiment_df = self.Diversity_Plot_DF()
 
 			self.div_plot.clear()
@@ -2104,12 +2770,19 @@ class Window (QDialog):
 
 					analyte_colour_array[a] = int((analyte_array[a] + 1) % 299)
 					
+				print('Dataframe Imported')
+
+
 
 				if comboAnalyte == "Show All":
+
+
+					print('Starting Plot')
 					print('Loading Diversity Tab')
 					colour = 0
 					for analyte in experiment_array_BOn:
 
+						print('Plotting Sample', [colour])
 
 
 
@@ -2121,7 +2794,7 @@ class Window (QDialog):
 						max_int = max(analyte[1])
 
 
-						test = self.div_plot.plot(title= "Test", x=x, y=y, pen=None, symbolPen=pg.intColor(analyte_colour_array[colour], hues=20, values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],hues=20,values=5),symbol='o', symbolSize= 10)
+						test = self.div_plot.plot(title= "Test", x=x, y=y, pen=None, symbolPen=pg.intColor(analyte_colour_array[colour],  values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],values=5),symbol='o')
 						min_int = 50000
 						int_x=40
 						if max_int < min_int:
@@ -2130,7 +2803,13 @@ class Window (QDialog):
 							test.setSymbolSize((max_int/230000)*4)
 
 						colour+=1
+					print('Plotting Finished')
+
+
+
 				if comboAnalyte != "Show All":
+
+
 					print('Loading Diversity Tab')
 					alpha=30
 					colour = 0
@@ -2144,7 +2823,7 @@ class Window (QDialog):
 						if analyte_array[colour] == float(comboAnalyte):
 
 
-							test = self.div_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour], hues=20, values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],hues=20,values=5),symbol='o', symbolSize= 10)
+							test = self.div_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour],  values=5), symbolBrush=pg.intColor(analyte_colour_array[colour],values=5),symbol='o', symbolSize= 10)
 							min_int = 50000
 							int_x=40
 							if max_int < min_int:
@@ -2153,7 +2832,7 @@ class Window (QDialog):
 								test.setSymbolSize((max_int/230000)*4)
 						else:
 							pass
-						test = self.div_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour], hues=20, values=5, alpha = alpha), symbolBrush=pg.intColor(analyte_colour_array[colour],hues=20,values=5, alpha = alpha),symbol='o', symbolSize= 10)
+						test = self.div_plot.plot(title= "Test", x=analyte[0], y=[i]*len(analyte[0]), pen=None, symbolPen=pg.intColor(analyte_colour_array[colour],  values=5, alpha = alpha), symbolBrush=pg.intColor(analyte_colour_array[colour],values=5, alpha = alpha),symbol='o', symbolSize= 10)
 						min_int = 50000
 						int_x=40
 						if max_int < min_int:
@@ -2169,7 +2848,7 @@ class Window (QDialog):
 			
 
 
-			print('PLOT SAMPLES', samples)
+			
 			
 			ticks = samples
 			ticksdict = dict(enumerate(ticks))
@@ -2181,32 +2860,38 @@ class Window (QDialog):
 		self.div_plot.enableAutoRange(axis=None)
 		print('Diversity Tab Loaded Succesfully')
 ##################################################################################################################	
-
+		print('PLOT DIVERSITY END')
 		return 
-	def Plot_ms1(self):
 
+
+
+
+	def Plot_ms1(self):
+		print('PLOT MS1 BEGIN')
 		chooseAnalyte = self.chooseAnalyte.currentText()
 		comboAnalyte=self.comboAnalyte.currentText()
 		comboText=self.comboBox.currentText()
 		self.ms1_plot.clear()
+		# self.ms1_plot.setLimits(ymin=0, ymax=100000)
 		df, df2 , df3= self.ms1_Plot_DF()
 
 		# self.ms1_plot.disableAutoRange(axis=None)
 		
 		if chooseAnalyte == "Replicate Analyte ID":
 			self.ms1_plot.setXRange(min=0,max=1200)
-			self.ms1_plot.setYRange(min=5, max=100)
+			self.ms1_plot.setYRange(min=10, max=100)
+			# self.ms1_plot.setLimits(ymin=0, ymax=100)
 			ms1_data = []
 			analyte_id_array = []
 
 			if comboAnalyte != "Show All":
-				print("Plot")
+		
 				for analyte_id in df.replicate_analyte_id.unique():
 					ms1_data.append([df[df["replicate_analyte_id"] == analyte_id]["relative_intensity"].to_numpy(),
 				                     df[df["replicate_analyte_id"] == analyte_id]["average_mass"].to_numpy()])
 					analyte_id_array.append(analyte_id)
 				analyte_colour_array = [0]*len(analyte_id_array)
-				print('analyte_id_array',analyte_id_array)
+
 
 				i = 0
 				while i < len(analyte_id_array):
@@ -2222,9 +2907,10 @@ class Window (QDialog):
 					
 
 					if float(comboAnalyte) == analyte_id_array[colour]:
-						print("comboAnalyte = colour")
+
 						pen = pg.mkPen(color=(0, 0, 0))
 						self.ms1_plot.plot( x=analyte[1], y=analyte[0], pen=pen )
+						
 
 
 						i = 0
@@ -2232,11 +2918,11 @@ class Window (QDialog):
 							np.round(analyte[1],2)
 							np.round(analyte[0],2)
 							if analyte[0][i] > 0:
-								text = pg.TextItem(str(np.round(analyte[1][i],2)),color=(0,0,0))
+								text = pg.TextItem(str(np.round(analyte[1][i],4)),color=(0,0,0))
 								self.ms1_plot.addItem(text)
 
 
-								text.setPos(analyte[1][i], analyte[0][i])
+								text.setPos(analyte[1][i], analyte[0][i] + 1)
 								i+=1
 							else:
 								i+=1
@@ -2253,7 +2939,7 @@ class Window (QDialog):
 		if chooseAnalyte == "Sample Analyte ID":
 			self.ms1_plot.setXRange(min=0,max=1200)
 			self.ms1_plot.setYRange(min=50000, max=1000000)
-			print('analyte_id')
+
 
 
 
@@ -2269,13 +2955,12 @@ class Window (QDialog):
 
 			ms1_data = []
 			analyte_id_array = []
-			print(df2)
+
 			if comboAnalyte != "Show All":
-				print('COMBO ANALYTE',comboAnalyte)
+
 				df=df2[df2.analyte_id == float(comboAnalyte)]
 				max_scan = df[df.intensity == df.intensity.max()].scan
-				print('MAX_SCAN',max_scan)
-				print('COMBO ANALYTE',comboAnalyte)
+
 
 				max_scan_value = max_scan.to_numpy()
 
@@ -2289,7 +2974,7 @@ class Window (QDialog):
 				mz_array = df['mz'].to_numpy()
 				intensity_array = df['intensity'].to_numpy()
 
-				print(mz_array)
+
 
 				intensity_zeros = [0]*len(intensity_array)
 				mass_lower = [0]*len(mz_array)
@@ -2356,29 +3041,29 @@ class Window (QDialog):
 					np.round(mz_array[0],2)
 					np.round(intensity_array[0],2)
 					if float(comboAnalyte) == analyte_id_array[colour]:
-						print("comboAnalyte = colour")
+			
 						analyte[1] = [0 if str(i) == 'nan' else i for i in analyte[1]]
 						analyte[0] = [0 if str(i) == 'nan' else i for i in analyte[0]]
 						pen = pg.mkPen(color=(0, 0, 0))
 						self.ms1_plot.plot( x=mz_array, y=intensity_array,pen=pen)
-						print('INTENSITY ARRAY',intensity_array[0])
-						print('MZ ARRAY',mz_array[0])
+						
+
 
 						i = 0
 						while i < len(mz_array):
 							if intensity_array[i] > 0:
 
-								text = pg.TextItem(str(np.round(mz_array[i],2)),color=(0,0,0))
-								self.ms1_plot.addItem(text)
+								text1 = pg.TextItem(str(np.round(mz_array[i],4)),color=(0,0,0))
+								self.ms1_plot.addItem(text1)
 
 
-								text.setPos(mz_array[i], intensity_array[i])
+								text1.setPos(float(mz_array[i]), float(intensity_array[i])+0.1)
+
 								i+=1
 							else:
 								i+=1
 					else:
-
-						print("comboAnalyte not = colour")
+						pass
 					colour +=1
 
 
@@ -2391,13 +3076,13 @@ class Window (QDialog):
 			analyte_id_array = []
 
 			if comboAnalyte != "Show All":
-				print("Plot")
+
 				for analyte_id in df3.experiment_analyte_id.unique():
 					ms1_data.append([df3[df3["experiment_analyte_id"] == analyte_id]["relative_intensity"].to_numpy(),
 				                     df3[df3["experiment_analyte_id"] == analyte_id]["average_mass"].to_numpy()])
 					analyte_id_array.append(analyte_id)
 				analyte_colour_array = [0]*len(analyte_id_array)
-				print('analyte_id_array',analyte_id_array)
+
 
 				i = 0
 				while i < len(analyte_id_array):
@@ -2411,37 +3096,170 @@ class Window (QDialog):
 				for analyte in ms1_data:
 
 					if float(comboAnalyte) == analyte_id_array[colour]:
-						print("comboAnalyte = colour")
+
 						pen = pg.mkPen(color=(0, 0, 0))
 						self.ms1_plot.plot( x=analyte[1], y=analyte[0],pen=pen)
-
+						
 						i = 0
 						while i < len(analyte[1]):
 							if analyte[0][i] > 0:
 
-								text = pg.TextItem(str(np.round(analyte[1][i],2)),color=(0,0,0))
+								text = pg.TextItem(str(np.round(analyte[1][i],4)),color=(0,0,0))
 								self.ms1_plot.addItem(text)
 
 
-								text.setPos(analyte[1][i], analyte[0][i])
+								text.setPos(float(analyte[1][i]), float(analyte[0][i])+0.1)
 								i+=1
 							else:
 								i+=1
 					else:
+						pass
 
-						print("comboAnalyte not = colour")
 					colour +=1
-
+				
 			# self.ms1_plot.enableAutoRange(axis=None)
+		print('PLOT MS1 END')
 		return
+	def Plot_Analyte_Legend(self):
+		print('PLOT ANALYTE LEGEND BEGIN')
+		self.analyte_legend.disableAutoRange(axis=None)
+		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
+		Sample_State = tab_state.return_sample_state()
+		Replicate_State = tab_state.return_replicate_state()
+		Experiment_State = tab_state.return_experiment_state()
+		Diversity_State = tab_state.return_diversity_state()
+		self.analyte_legend.setYRange(min=4, max=40)
+		self.analyte_legend.setXRange(min=0, max=1)
+		chooseAnalyte = self.chooseAnalyte.currentText()
+		comboText=self.comboBox.currentText()
+
+		sorted_df_mz = import_dataframe(input_structure, input_type, comboText)
+
+		# sorted_df_mz, sorted_df_rt= self.Sample_Plot_DF()
+
+
+		mz_array = []
+		analyte_mz_array = []
+
+		self.analyte_legend.clear()
+		if chooseAnalyte == "Sample Analyte ID":
+			print('Sample Analyte')
+
+			for analyte_id in sorted_df_mz.analyte_id.unique():
+
+				mz_array.append([sorted_df_mz[sorted_df_mz["analyte_id"] == analyte_id]["analyte_id"].to_numpy()])
+
+				analyte_mz_array.append(analyte_id)
+
+
+
+			analyte_mz_array = [0 if str(i) == 'nan' else i for i in analyte_mz_array]
+
+
+
+
+
+			analyte_colour_mz_array = [0]*len(analyte_mz_array)
+
+
+			i = 0
+			while i < len(analyte_mz_array):
+				analyte_colour_mz_array[i] = int((analyte_mz_array[i] + 1) % 299)
+				i+=1
+
+		if chooseAnalyte == "Replicate Analyte ID":
+			print('Replicate Analyte')
+
+			for analyte_id in sorted_df_mz.analyte_id.unique():
+
+				mz_array.append([sorted_df_mz[sorted_df_mz["replicate_analyte_id"] == analyte_id]["replicate_analyte_id"].to_numpy()])
+
+				analyte_mz_array.append(analyte_id)
+
+
+
+			analyte_mz_array = [0 if str(i) == 'nan' else i for i in analyte_mz_array]
+
+
+
+
+
+			analyte_colour_mz_array = [0]*len(analyte_mz_array)
+
+
+			i = 0
+			while i < len(analyte_mz_array):
+				analyte_colour_mz_array[i] = int((analyte_mz_array[i] + 1) % 299)
+				i+=1
+
+
+		if chooseAnalyte == "Experiment Analyte ID":
+			print('Experiment Analyte')
+
+			for analyte_id in sorted_df_mz.analyte_id.unique():
+
+				mz_array.append([sorted_df_mz[sorted_df_mz["experiment_analyte_id"] == analyte_id]["experiment_analyte_id"].to_numpy()])
+
+				analyte_mz_array.append(analyte_id)
+
+
+
+			analyte_mz_array = [0 if str(i) == 'nan' else i for i in analyte_mz_array]
+
+
+
+
+
+			analyte_colour_mz_array = [0]*len(analyte_mz_array)
+
+
+			i = 0
+			while i < len(analyte_mz_array):
+				analyte_colour_mz_array[i] = int((analyte_mz_array[i] + 1) % 299)
+				i+=1
+
+
+
+		colour=0
+
+		for analyte in analyte_mz_array:
+
+
+			#self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+			#colour+=1
+
+			x=[0]
+			y=[float(analyte),0]
+			
+
+
+			self.analyte_legend.plot( x=x, y=y, pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=255),symbol='o', symbolSize=6)
+			
+			colour+=1
+
+
+			text = pg.TextItem(str(y[0]),color=(0,0,0))
+
+			self.analyte_legend.addItem(text)
+
+
+			text.setPos(0.1, y[0]-0.70)
+
+		self.analyte_legend.getViewBox().invertY(True)
+		self.analyte_legend.setLimits(xMin=-.05, xMax=0.5,yMin=0.5, yMax=max(analyte_mz_array)+1)
+
+		print('PLOT ANALYTE LEGEND END')
+		# self.analyte_legend.enableAutoRange(axis=None)
 
 
 	def reset_all(self):
-			state = State(self.Nullbutton.setChecked(False), self.Blankbutton.setChecked(False), 0, 1200, 0, 7)
+			state = State(self.Nullbutton.setChecked(False), self.Blankbutton.setChecked(False), 0, 1200, 0, 7,self.Toggle_rt.setChecked(False))
 			self.Blankbutton.setStyleSheet("background-color : lightgreen") 
 			self.Blankbutton.setText('On')
 			self.Nullbutton.setStyleSheet("background-color : lightgreen") 
 			self.Nullbutton.setText('On')
+			self.Toggle_rt.setText('Toggle Scatter Plot')
+			self.Toggle_rt.setStyleSheet("background-color : lightgrey")
 			self.massCheckbox.setChecked(False)
 
 			self.mMinBox.setText('0')
@@ -2453,33 +3271,35 @@ class Window (QDialog):
 
 	def reset_massRange(self):
 
-		state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, self.rtMinBox.text(), self.rtMaxBox.text())
+		state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, self.rtMinBox.text(), self.rtMaxBox.text(),self.Toggle_rt.isChecked())
 		self.mMinBox.setText('0')
 		self.mMaxBox.setText('1200')
 
 	def reset_rtRange(self):
-		state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), 0, 7)
+		state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), 0, 7,self.Toggle_rt.isChecked())
 		self.rtMinBox.setText('0')
 		self.rtMaxBox.setText('7')
 
 
 	def Sample_Plot_DF(self):
+		print('SAMPLE PLOT DF BEGIN')
 		chooseAnalyte = self.chooseAnalyte.currentText()
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
 		Experiment_State = tab_state.return_experiment_state()
+		
 		if Sample_State == False:
 			if self.massCheckbox.isChecked() == False:
 				# if self.rtCheckbox.isChecked() == False:
-				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, 0, 7)
+				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, 0, 7,self.Toggle_rt.isChecked())
 
 			#if self.rtCheckbox.isChecked() == False:
 			#	state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), 0, 7)
 
 			if self.massCheckbox.isChecked() == True:
 				# if self.rtCheckbox.isChecked() == False:
-				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text())
+				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text(),self.Toggle_rt.isChecked())
 
 
 
@@ -2492,6 +3312,7 @@ class Window (QDialog):
 
 			BlankState = state.return_blank_state()
 			NullState = state.return_null_state()
+			Toggle_rt = state.return_Toggle_rt()
 			comboText=self.comboBox.currentText()
 
 			############### Fetch data for mz_plot and plot sample from comboBox ###############
@@ -2504,7 +3325,7 @@ class Window (QDialog):
 				if NullState == True:
 					total_df = total_df.dropna(subset=['analyte_id'])
 					total_df=total_df[total_df.analyte_id != None]
-					print('df Null Off', total_df.analyte_id)
+					
 				else:
 					pass
 				if BlankState == True:
@@ -2587,11 +3408,20 @@ class Window (QDialog):
 			sorted_df_rt = []
 
 
+
+
+	
+
+			# max_scan_value = max_scan.to_numpy()
+
+			# df=df[df.scan == max_scan_value[0]]
+		print('SAMPLE PLOT DF END')
 		return sorted_df_mz, sorted_df_rt
 
 
 
 	def Replicate_Plot_DF(self):
+		print('REPLICATE PLOT DF BEGIN')
 		chooseAnalyte = self.chooseAnalyte.currentText()
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
@@ -2601,14 +3431,14 @@ class Window (QDialog):
 		if Replicate_State == False:
 			if self.massCheckbox.isChecked() == False:
 				# if self.rtCheckbox.isChecked() == False:
-				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, 0, 7)
+				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, 0, 7,self.Toggle_rt.isChecked())
 
 			#if self.rtCheckbox.isChecked() == False:
 			#	state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), 0, 7)
 
 			if self.massCheckbox.isChecked() == True:
 				# if self.rtCheckbox.isChecked() == False:
-				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text())
+				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text(),self.Toggle_rt.isChecked())
 
 
 
@@ -2758,20 +3588,20 @@ class Window (QDialog):
 			sorted_df_rt_r1 = []
 			sorted_df_rt_r2 = []
 			sorted_df_rt_r3 = []
-
+		print('REPLICATE PLOT DF END')
 		return sorted_df_mz_r1, sorted_df_rt_r1, sorted_df_mz_r2, sorted_df_rt_r2, sorted_df_mz_r3, sorted_df_rt_r3
 ################### Connecting Region 1 to Region 3 ###########################
 	def Experiment_Plot_DF(self):
-
+		print('EXPERIMENT PLOT DF BEGIN')
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
 		Experiment_State = tab_state.return_experiment_state()
-		print('EXPERIMENT PLOT DF 1')
+		
 
 		if Experiment_State == False:
 			print('EXPERIMENT PLOT DF 2')
-			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text())
+			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text(),self.Toggle_rt.isChecked())
 
 			BlankState = state.return_blank_state()
 			NullState = state.return_null_state()
@@ -2790,7 +3620,7 @@ class Window (QDialog):
 		else:
 			samples=[]
 			experiment_df = []
-
+		print('EXPERIMENT PLOT DF END')
 		return samples, experiment_df
 
 
@@ -2806,7 +3636,7 @@ class Window (QDialog):
 
 		if Diversity_State == False:
 
-			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text())
+			state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text(),self.Toggle_rt.isChecked())
 
 			BlankState = state.return_blank_state()
 			NullState = state.return_null_state()
@@ -2845,32 +3675,7 @@ class Window (QDialog):
 
 		df=df4[df4.replicate == 1]
 
-		# df = df.sort_values('mz', inplace= True)
-		# sorted_df4.groupby('scan').intensity.max()
-		
-		
-		# print('DF MAX', sorted_df4)
 
-
-
-
-
-		# ms1_data = []
-		# for analyte_id in sorted_df4.analyte_id.unique():
-		# 	for max_value in sorted_df4.scan.unique():
-		# 		sorted_max_df4 = sorted_df4.loc[sorted_df4['intensity'].idxmax()]
-		# 		print(sorted_max_df4)
-
-
-
-
-
-
-
-		# 		for analyte_id in df3.experiment_analyte_id.unique():
-		# 			ms1_data.append([df3[df3["experiment_analyte_id"] == analyte_id]["relative_intensity"].to_numpy(),
-		# 		                     df3[df3["experiment_analyte_id"] == analyte_id]["average_mass"].to_numpy()])
-		# 			analyte_id_array.append(analyte_id)
 		return df1, df, df3
 
 	def nullButton(self):
@@ -2914,7 +3719,24 @@ class Window (QDialog):
 			# set background color back to light-grey 
 			self.Blankbutton.setStyleSheet("background-color : lightgreen") 
 			self.Blankbutton.setText('On')
+	def toggle_rt(self):
 
+	    # method called by button 
+
+	  
+	    # if button is checked 
+		if self.Toggle_rt.isChecked():
+			#self.update_tab()
+	        # setting background color to light-blue 
+			self.Toggle_rt.setStyleSheet("background-color : lightgrey")
+			self.Toggle_rt.setText('Toggle Line Plot') 
+
+	    # if it is unchecked 
+		else: 
+			#self.update_tab()
+			# set background color back to light-grey 
+			self.Toggle_rt.setStyleSheet("background-color : lightgrey")
+			self.Toggle_rt.setText('Toggle Scatter Plot')
 
 	def mMinLimit(self, text):
 		print(self.mMaxBox.text())
