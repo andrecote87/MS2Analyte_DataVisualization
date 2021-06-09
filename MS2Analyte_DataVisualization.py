@@ -22,6 +22,9 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QLineEdi
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 from ms2analyte.file_handling import data_import
+import pyqtgraph.console
+from collections import namedtuple
+from itertools import chain
 
 
 
@@ -32,7 +35,8 @@ if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
 if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
 ########### Data Import #################
-
+lastClicked = []
+clickedPen = pg.mkPen('s', width=5)
 def fetch_sample_list(input_structure, input_type):
 	sample_list = data_import.name_extract(input_structure, input_type)
 	
@@ -272,6 +276,7 @@ sample_names = fetch_sample_list(input_structure, input_type)
 
 #################################### Start GUI  ##################################################
 
+
 class State:
 	def __init__(self, null, blank, massMin, massMax, rtMin, rtMax, Toggle_rt):
 
@@ -372,27 +377,7 @@ class Current_Sample:
 
 
 
-class MyPlotWidget(pg.PlotWidget):
 
-	def __init__(self, **kwargs):
-		super().__init__(**kwargs)
-
-		# self.scene() is a pyqtgraph.GraphicsScene.GraphicsScene.GraphicsScene
-		self.scene().sigMouseClicked.connect(self.hover)    
-
-	
-	def hover(self, HoverEvent):
-		# mouseClickEvent is a pyqtgraph.GraphicsScene.mouseEvents.MouseClickEvent
-		# current_sample = Current_Sample("")
-		# print(current_sample.return_current_sample())
-
-		# print(total_df)
-		# print(Current_Sample.self.current_sample)
-		
-		print("Mass: ",HoverEvent.pos()[0],"Intensity: ", HoverEvent.pos()[1])
-		# print(HoverEvent.acceptClicks()[0])
-		
-		return 
 
 
 
@@ -429,6 +414,8 @@ class Window (QDialog):
 		# windowLayout.setStyleSheet("background-color: white;")
 		windowLayout.addWidget(self.horizontalGroupBox)
 		self.setLayout(windowLayout)
+
+
 		# extractAction = QAction("&Quit", self)
 		# extractAction.setShortcut("Ctrl+Q")
 		# extractAction.setStatusTip('Leave The App')
@@ -477,8 +464,43 @@ class Window (QDialog):
 			QtCore.Qt.WindowSystemMenuHint)
 		self.show()
 
+	def sample_export(self):
+		state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), self.rtMinBox.text(), self.rtMaxBox.text(),self.Toggle_rt.isChecked())
+
+
+
+		BlankState = state.return_blank_state()
+		NullState = state.return_null_state()
+		comboText = self.comboBox.currentText()
+
+
+		sorted_df_mz, sorted_df_rt= self.Sample_Plot_DF()
+
+
+
+
+
+		if BlankState or NullState == True:
+			name, _ = QFileDialog.getSaveFileName(self, "Save", os.getcwd()+os.sep+comboText +'_Filter', "CSV Files (*.csv)")
+
+		else:
+			name, _ = QFileDialog.getSaveFileName(self, "Save", os.getcwd()+os.sep+comboText, "CSV Files (*.csv)")
+
+		df = sorted_df_mz.to_csv()
+
+		if not name : return 0
+
+		sorted_df_mz.to_csv(name, index=False)
+
+
+
+
 	def region_1(self):
 		self.horizontalGroupBox = QGroupBox()
+
+
+
+
 		layoutMain = QGridLayout()
 		
 
@@ -646,8 +668,10 @@ class Window (QDialog):
 
 
 
-
-
+		self.ms1_rightButton = QToolButton(self)
+		self.ms1_rightButton.setArrowType(Qt.RightArrow)
+		self.ms1_leftButton = QToolButton(self)
+		self.ms1_leftButton.setArrowType(Qt.LeftArrow)
 
 
 
@@ -817,12 +841,18 @@ class Window (QDialog):
 
 
 
-		self.export_csv = QPushButton("Export CSV",self)
+		self.export_csv = QPushButton("CSV",self)
+		self.export_csv.clicked.connect(self.sample_export)
+		self.export_mzml = QPushButton("mzML",self)
+		# self.export_mgf = QPushButton("MZML",self)
+		self.export_label_1 = QLabel('m/z and Retention Time')
+		self.export_label_1.setFont(QFont('Times', 10))
+		self.export_label_2 = QLabel('MS<sup>1</sup> and MS<sup>2</sup>')
+		self.export_label_2.setFont(QFont('Times',10))
 		self.space_label1 = QLabel('')
-		layoutRegion10 = QGridLayout()
 
-		layoutRegion10.addWidget(self.export_csv,0,1)
-		layoutRegion10.addWidget(self.space_label1,0,0)
+
+
 ################ Center Left of interface (Region 3) ###################
 		
 
@@ -885,14 +915,23 @@ class Window (QDialog):
 
 		self.Blankbutton.clicked.connect(self.Plot_Diversity)
 
+		# namespace = {'pg': pg, 'np': np}
+		# self.c = pyqtgraph.console.ConsoleWidget(namespace=namespace, text='test')
+		# self.centralwidget = self.Window
+
+		self.c = QtWidgets.QTextBrowser()
 
 ########### Grid Region 2 ###########################
-		self.Filters = QLabel("Filters")
+		self.Filters = QLabel("Filter Options")
 		self.Filters.setFont(QFont('Times', 12))
+		self.Export = QLabel("Export Options")
+		self.Export.setFont(QFont('Times', 12))
 		self.Line1 = QLabel("__________________________________________________")
 		self.Line2 = QLabel("__________________________________________________")
 		self.Line3 = QLabel("__________________________________________________")
 		self.Line4 = QLabel("__________________________________________________")
+		self.Line5 = QLabel("__________________________________________________")
+		self.Line6 = QLabel("__________________________________________________")
 		self.Blank1 = QLabel("   ")
 		layoutRegion2 = QGridLayout()
 
@@ -929,7 +968,16 @@ class Window (QDialog):
 		layoutRegion4.addWidget(self.Line4,11,0,1,3)
 		layoutRegion4.addWidget(self.resetButton,13,0)
 		layoutRegion4.addWidget(self.Toggle_rt,12,0)
-
+		layoutRegion4.addWidget(self.Blank1,14,0,1,3)
+		layoutRegion4.addWidget(self.Export,15,0,1,3)
+		layoutRegion4.addWidget(self.Line5,16,0,1,3)
+		layoutRegion4.addWidget(self.export_label_1,17,0,QtCore.Qt.AlignCenter)
+		layoutRegion4.addWidget(self.export_csv,18,0)
+		layoutRegion4.addWidget(self.export_label_2,17,1,QtCore.Qt.AlignCenter)
+		layoutRegion4.addWidget(self.export_mzml,18,1)
+		layoutRegion4.addWidget(self.Line6,19,0,1,3)
+		layoutRegion4.addWidget(self.c,20,0,1,2)
+		# layoutRegion4.addWidget(self.space_label1,0,0)
 
 
 
@@ -941,7 +989,7 @@ class Window (QDialog):
 ################## Sample ###########################
 
 		self.mz_label1 = pg.LabelItem(justify='right')
-		self.mz_plot = MyPlotWidget()
+		self.mz_plot = pg.PlotWidget()
 		
 		self.mz_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
@@ -954,19 +1002,19 @@ class Window (QDialog):
 
 
 
-		self.rt_plot = MyPlotWidget()
+		self.rt_plot = pg.PlotWidget()
 		self.rt_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.rt_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
 		
 		self.rt_plot.setMouseEnabled(x=True, y=False)
-		self.ms1_plot = MyPlotWidget()
+		self.ms1_plot = pg.PlotWidget()
 		self.ms1_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.ms1_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'})
 		self.ms1_plot.setTitle("MS<sup>1</sup> Spectra")
 		self.ms1_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
 		self.ms1_plot.setMouseEnabled(x=True, y=False)
-		self.ms2_plot = MyPlotWidget()
+		self.ms2_plot = pg.PlotWidget()
 		self.ms2_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.ms2_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.ms2_plot.setTitle("MS<sup>2</sup> Spectra")
@@ -977,37 +1025,37 @@ class Window (QDialog):
 ############# Replicate #############################
 
 
-		self.mz_r1_plot = MyPlotWidget()
+		self.mz_r1_plot = pg.PlotWidget()
 		self.mz_r1_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.mz_r1_plot.setTitle("Replicate 1 m/z vs intensity")
 		self.mz_r1_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_r1_plot.setLabel(axis='left',text='Intensity')
 		self.mz_r1_plot.setMouseEnabled(x=True, y=False)
-		self.mz_r2_plot = MyPlotWidget()
+		self.mz_r2_plot = pg.PlotWidget()
 		self.mz_r2_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.mz_r2_plot.setTitle("Replicate 2 m/z vs intensity")
 		self.mz_r2_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_r2_plot.setLabel(axis='left',text='Intensity')
 		self.mz_r2_plot.setMouseEnabled(x=True, y=False)
-		self.mz_r3_plot = MyPlotWidget()
+		self.mz_r3_plot = pg.PlotWidget()
 		self.mz_r3_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.mz_r3_plot.setTitle("Replicate 3 m/z vs intensity")
 		self.mz_r3_plot.setLabel(axis='bottom',text='m/z',**{ 'font-size': '10pt'}, **{'font': 'Italicized'})
 		self.mz_r3_plot.setLabel(axis='left',text='Intensity')
 		self.mz_r3_plot.setMouseEnabled(x=True, y=False)
-		self.rt_r1_plot = MyPlotWidget()
+		self.rt_r1_plot = pg.PlotWidget()
 		self.rt_r1_plot.setTitle("Replicate 1 rt vs intesnity")
 		self.rt_r1_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.rt_r1_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_r1_plot.setLabel(axis='left',text='Intensity')
 		self.rt_r1_plot.setMouseEnabled(x=True, y=False)
-		self.rt_r2_plot = MyPlotWidget()
+		self.rt_r2_plot = pg.PlotWidget()
 		self.rt_r2_plot.setTitle("Replicate 2 rt vs intesnity")
 		self.rt_r2_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_r2_plot.setLabel(axis='left',text='Intensity')
 		self.rt_r2_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.rt_r2_plot.setMouseEnabled(x=True, y=False)
-		self.rt_r3_plot = MyPlotWidget()
+		self.rt_r3_plot = pg.PlotWidget()
 		self.rt_r3_plot.setTitle("Replicate 3 rt vs intesnity")
 		self.rt_r3_plot.setLabel(axis='bottom',text='rt',**{ 'font-size': '10pt'})
 		self.rt_r3_plot.setLabel(axis='left',text='Intensity')
@@ -1018,14 +1066,14 @@ class Window (QDialog):
 
 ############# Experiment and Diversity #############################
 
-		self.ex_bOn_plot = MyPlotWidget()
+		self.ex_bOn_plot = pg.PlotWidget()
 		self.ex_bOn_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 
 
 
 
 
-		self.div_plot = MyPlotWidget()
+		self.div_plot = pg.PlotWidget()
 		self.div_plot.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		# self.ex_bOn_plot.move(20,250 + move_y)
 
@@ -1052,7 +1100,7 @@ class Window (QDialog):
 		self.analyte_legend.setStyleSheet("background-color: white; margin:0.001px; border:1px solid black; ")
 		self.analyte_legend.hideAxis('left')
 		self.analyte_legend.hideAxis('bottom')
-		self.analyte_legend.setMouseEnabled(x=False, y=True)
+		self.analyte_legend.setMouseEnabled(x=True, y=True)
 		layoutRegion9 = QGridLayout()
 
 		layoutRegion9.addWidget(self.analyte_legend,0,1)
@@ -1071,22 +1119,29 @@ class Window (QDialog):
 ############ Grid Region 3 ###################################
 
 		layoutRegion3 = QGridLayout()
-		
 		layoutRegion3.addWidget(self.mz_plot,0,1)
 		layoutRegion3.addWidget(self.rt_plot,1,1)
-
-		layoutRegion5 = QGridLayout()
-		layoutRegion5.addWidget(self.ms1_plot,0,1)
-		layoutRegion5.addWidget(self.ms2_plot,1,1)
-
-		
-
 		layoutRegion3.addWidget(self.mz_r1_plot,1,1)
 		layoutRegion3.addWidget(self.mz_r2_plot,2,1)
 		layoutRegion3.addWidget(self.mz_r3_plot,3,1)
 		layoutRegion3.addWidget(self.rt_r1_plot,4,1)
 		layoutRegion3.addWidget(self.rt_r2_plot,5,1)
 		layoutRegion3.addWidget(self.rt_r3_plot,6,1)
+
+
+
+		layoutRegion5 = QGridLayout()
+		layoutRegion5.addWidget(self.ms1_plot,0,1)
+		layoutRegion5.addWidget(self.ms2_plot,1,1)
+
+
+
+
+		layoutRegion10 = QGridLayout()
+		layoutRegion10.addWidget(self.ms1_leftButton,2,1,QtCore.Qt.AlignLeft)
+		layoutRegion10.addWidget(self.ms1_rightButton,2,1,QtCore.Qt.AlignRight)
+		
+
 
 		layoutRegion6 = QGridLayout()
 
@@ -1095,6 +1150,9 @@ class Window (QDialog):
 		layoutRegion8 = QGridLayout()
 
 		layoutRegion8.addWidget(self.div_plot,1,0)
+
+
+
 ############# Create Main Grid ###############################
 
 		# g.addWidget(button, N, 0, 1, N, QtCore.Qt.AlignCenter)
@@ -1114,7 +1172,9 @@ class Window (QDialog):
 		layoutMain.addLayout(layoutRegion8,1,0, 1,1)
 
 		layoutMain.addLayout(layoutRegion9,1,2)
-		layoutMain.addLayout(layoutRegion10,2,1)
+		layoutMain.addLayout(layoutRegion10,1,1,QtCore.Qt.AlignTop)
+
+
 ############################################################################
 
 
@@ -1122,6 +1182,7 @@ class Window (QDialog):
 		# layoutMain.addLayout(layoutRegion3_R,1,0)
 		# layoutMain.addLayout(layoutRegion3_E,1,0)
 		self.horizontalGroupBox.setLayout(layoutMain)
+
 
 
 
@@ -1241,8 +1302,88 @@ class Window (QDialog):
 		
 		else:
 			pass
+	
+
+	############################## Clicking Data Points On Plots
+	
+	def clicked(self, plot, points):
+
+
+		global lastClicked
+
+
+
+
+		for p in lastClicked:
+
+
+			p.resetPen()
+
+
+		print('TEST')
+		self.c.append('_____________________________________________')
+		self.c.append('\nData Selected')
+		comboText=self.comboBox.currentText()
+		total_df = import_dataframe(input_structure, input_type, comboText)
+
+
+		indexes = []
+
+		for p in points:
+
+			p.resetPen()
+			p.setPen(clickedPen)
+
+			p = p.pos()
+
+			x = float(p[0])
+
+			y = float(p[1])
+
+			info_df = total_df[total_df.mz == x]
+			info_df = info_df[info_df.intensity == y]
+
+			analyte_id = info_df.analyte_id.to_numpy()
+
+			retention_time = info_df.rt.to_numpy()
+			drift_time = info_df.drift.to_numpy()
+			blank = info_df.blank_analyte.to_numpy()
+
+			
+	
+			self.c.append('---------------------------------')
+			self.c.append('Analyte ID: '+ str(analyte_id[0]))
+			self.c.append('---------------------------------')
+			self.c.append('m/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
+			self.mz_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
+
+			self.mz_r1_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
+			self.mz_r2_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
+			self.mz_r3_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
+
+			# text = pg.TextItem('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]),color=(0,0,0))
+			# self.mz_plot.addItem(text)
+
+
+			# text.setPos(1000, 300000)
+		lastClicked = points
+
+
+
+
+	def ms1_clicked(self, plot, points):
+		indexes = []
+
+		for p in points:
+			print("ms1 CLICKED")
+
 	def Plot_Sample(self):
+		global lastClicked
+		lastClicked = []
 		print('PLOT SAMPLE BEGIN')
+		
+		self.c.append('Plotting Sample..')
+		self.c.update()
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
@@ -1252,6 +1393,8 @@ class Window (QDialog):
 		Toggle_rt = state.return_Toggle_rt()
 
 		if Sample_State == False:
+			self.c.append('Plotting Sample...')
+			self.c.update()
 			chooseAnalyte = self.chooseAnalyte.currentText()
 			self.mz_plot.disableAutoRange(axis=None)
 			self.rt_plot.disableAutoRange(axis=None)
@@ -1494,6 +1637,8 @@ class Window (QDialog):
 
 
 			if Toggle_rt == False:
+				self.c.append('Plotting Sample....')
+				self.c.update()
 				if comboAnalyte != "Show All":
 					alpha=1
 					print('Loading Sample Tab..')
@@ -1508,14 +1653,14 @@ class Window (QDialog):
 						if analyte_mz_array[colour] == float(comboAnalyte):
 
 
-							self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=255),symbol='o', symbolSize=3)
-
+							self.test = self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							self.test.sigPointsClicked.connect(self.clicked)
 						else:
 							pass
 
 
-						self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
-						
+						self.test = self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 
 					colour=0
@@ -1544,6 +1689,7 @@ class Window (QDialog):
 
 						self.test = self.mz_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5),symbol='o', symbolSize=3)
 						#test.setAlpha(0, False)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 					colour=0
 					for analyte in rt_array:
@@ -1575,14 +1721,14 @@ class Window (QDialog):
 						if analyte_mz_array[colour] == float(comboAnalyte):
 
 
-							self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=255),symbol='o', symbolSize=3)
-
+							self.test = self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							self.test.sigPointsClicked.connect(self.clicked)
 						else:
 							pass
 
 
-						self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
-						
+						self.test = self.mz_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 
 					colour=0
@@ -1611,6 +1757,7 @@ class Window (QDialog):
 
 						self.test = self.mz_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5),symbol='o', symbolSize=3)
 						#test.setAlpha(0, False)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 					colour=0
 					for analyte in rt_array:
@@ -1649,9 +1796,9 @@ class Window (QDialog):
 
 
 
-
-
-
+		
+		self.c.update()
+		self.c.append('Sample Tab Loaded Succesfully')
 		print('Sample Tab Loaded Succesfully')
 
 
@@ -1661,6 +1808,8 @@ class Window (QDialog):
 
 
 	def Plot_Replicate(self):
+		global lastClicked
+		lastClicked = []
 		print('PLOT REPLICATE BEGIN')
 		print('Loading Replicate Tab')
 		chooseAnalyte = self.chooseAnalyte.currentText()
@@ -1881,14 +2030,14 @@ class Window (QDialog):
 						if analyte_mz_array_r1[colour] == float(comboAnalyte):
 
 
-							self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=255),symbol='o', symbolSize=3)
-							
+							self.test = self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							self.test.sigPointsClicked.connect(self.clicked)
 						else:
 							pass
 
 
-						self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
-						
+						self.test = self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 
 					colour=0
@@ -1917,6 +2066,7 @@ class Window (QDialog):
 
 						self.test = self.mz_r1_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5),symbol='o', symbolSize=3)
 						#test.setAlpha(0, False)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 					colour=0
 					for analyte in rt_array_r1:
@@ -1943,14 +2093,14 @@ class Window (QDialog):
 						if analyte_mz_array_r1[colour] == float(comboAnalyte):
 
 
-							self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=255),symbol='o', symbolSize=3)
-							
+							self.test = self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							self.test.sigPointsClicked.connect(self.clicked)
 						else:
 							pass
 
 
-						self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
-						
+						self.test = self.mz_r1_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 
 					colour=0
@@ -1979,6 +2129,7 @@ class Window (QDialog):
 
 						self.test = self.mz_r1_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r1[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r1[colour],values=5),symbol='o', symbolSize=3)
 						#test.setAlpha(0, False)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 					colour=0
 					for analyte in rt_array_r1:
@@ -2168,14 +2319,14 @@ class Window (QDialog):
 						if analyte_mz_array_r2[colour] == float(comboAnalyte):
 
 
-							self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=255),symbol='o', symbolSize=3)
-							
+							self.test = self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							self.test.sigPointsClicked.connect(self.clicked)
 						else:
 							pass
 
 
-						self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
-						
+						self.test = self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 
 					colour=0
@@ -2204,6 +2355,7 @@ class Window (QDialog):
 
 						self.test = self.mz_r2_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5),symbol='o', symbolSize=3)
 						#test.setAlpha(0, False)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 					colour=0
 					for analyte in rt_array_r2:
@@ -2234,14 +2386,14 @@ class Window (QDialog):
 							if analyte_mz_array_r2[colour] == float(comboAnalyte):
 
 
-								self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=255),symbol='o', symbolSize=3)
-								
+								self.test = self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+								self.test.sigPointsClicked.connect(self.clicked)
 							else:
 								pass
 
 
-							self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
-							
+							self.test = self.mz_r2_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+							self.test.sigPointsClicked.connect(self.clicked)
 							colour+=1
 
 						colour=0
@@ -2273,6 +2425,7 @@ class Window (QDialog):
 
 						self.test = self.mz_r2_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r2[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r2[colour],values=5),symbol='o', symbolSize=3)
 						#test.setAlpha(0, False)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 					colour=0
 					for analyte in rt_array_r2:
@@ -2461,14 +2614,14 @@ class Window (QDialog):
 						if analyte_mz_array_r3[colour] == float(comboAnalyte):
 
 
-							self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=255),symbol='o', symbolSize=3)
-							
+							self.test = self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+							self.test.sigPointsClicked.connect(self.clicked)
 						else:
 							pass
 
 
-						self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
-						
+						self.test = self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 
 					colour=0
@@ -2497,6 +2650,7 @@ class Window (QDialog):
 
 						self.test = self.mz_r3_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5),symbol='o', symbolSize=3)
 						#test.setAlpha(0, False)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 					colour=0
 					for analyte in rt_array_r3:
@@ -2523,14 +2677,14 @@ class Window (QDialog):
 							if analyte_mz_array_r3[colour] == float(comboAnalyte):
 
 
-								self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=255),symbol='o', symbolSize=3)
-								
+								self.test = self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=255),symbol='o', symbolSize=3)
+								self.test.sigPointsClicked.connect(self.clicked)
 							else:
 								pass
 
 
-							self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
-							
+							self.test = self.mz_r3_plot.plot( x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5, alpha=alpha), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5,alpha=alpha),symbol='o', symbolSize=3)
+							self.test.sigPointsClicked.connect(self.clicked)
 							colour+=1
 
 						colour=0
@@ -2559,6 +2713,7 @@ class Window (QDialog):
 
 						self.test = self.mz_r3_plot.plot( title="test", x=analyte[0], y=analyte[1], pen=None, symbolPen=pg.intColor( analyte_colour_mz_array_r3[colour],  values=5), symbolBrush=pg.intColor( analyte_colour_mz_array_r3[colour],values=5),symbol='o', symbolSize=3)
 						#test.setAlpha(0, False)
+						self.test.sigPointsClicked.connect(self.clicked)
 						colour+=1
 					colour=0
 					for analyte in rt_array_r3:
@@ -2886,7 +3041,7 @@ class Window (QDialog):
 		
 		if chooseAnalyte == "Replicate Analyte ID":
 			self.ms1_plot.setXRange(min=0,max=1200)
-			self.ms1_plot.setYRange(min=10, max=100)
+			self.ms1_plot.setYRange(min=6, max=100)
 			# self.ms1_plot.setLimits(ymin=0, ymax=100)
 			ms1_data = []
 			analyte_id_array = []
@@ -2916,8 +3071,8 @@ class Window (QDialog):
 					if float(comboAnalyte) == analyte_id_array[colour]:
 
 						pen = pg.mkPen(color=(0, 0, 0))
-						self.ms1_plot.plot( x=analyte[1], y=analyte[0], pen=pen )
-						
+						self.test = self.ms1_plot.plot( x=analyte[1], y=analyte[0], pen=pen )
+						self.test.sigPointsClicked.connect(self.ms1_clicked)
 
 
 						i = 0
@@ -2929,7 +3084,7 @@ class Window (QDialog):
 								self.ms1_plot.addItem(text)
 
 
-								text.setPos(analyte[1][i], analyte[0][i] + 1)
+								text.setPos(float(analyte[1][i]), float(analyte[0][i]) + 5)
 								i+=1
 							else:
 								i+=1
@@ -2945,16 +3100,7 @@ class Window (QDialog):
 
 		if chooseAnalyte == "Sample Analyte ID":
 			self.ms1_plot.setXRange(min=0,max=1200)
-			self.ms1_plot.setYRange(min=50000, max=1000000)
-
-
-
-
-
-			
-
-
-
+			self.ms1_plot.setYRange(min=16000, max=300000)
 
 
 
@@ -3052,8 +3198,10 @@ class Window (QDialog):
 						analyte[1] = [0 if str(i) == 'nan' else i for i in analyte[1]]
 						analyte[0] = [0 if str(i) == 'nan' else i for i in analyte[0]]
 						pen = pg.mkPen(color=(0, 0, 0))
-						self.ms1_plot.plot( x=mz_array, y=intensity_array,pen=pen)
 						
+						self.test = self.ms1_plot.plot( x=mz_array, y=intensity_array,pen=pen)
+
+
 
 
 						i = 0
@@ -3064,7 +3212,7 @@ class Window (QDialog):
 								self.ms1_plot.addItem(text1)
 
 
-								text1.setPos(float(mz_array[i]), float(intensity_array[i])+0.1)
+								text1.setPos(float(mz_array[i]), float(intensity_array[i])+15000)
 
 								i+=1
 							else:
@@ -3105,8 +3253,8 @@ class Window (QDialog):
 					if float(comboAnalyte) == analyte_id_array[colour]:
 
 						pen = pg.mkPen(color=(0, 0, 0))
-						self.ms1_plot.plot( x=analyte[1], y=analyte[0],pen=pen)
-						
+						self.test = self.ms1_plot.plot( x=analyte[1], y=analyte[0],pen=pen)
+						self.test.sigPointsClicked.connect(self.ms1_clicked)
 						i = 0
 						while i < len(analyte[1]):
 							if analyte[0][i] > 0:
