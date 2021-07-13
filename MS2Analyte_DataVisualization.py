@@ -21,12 +21,19 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QLineEdi
 				  QGridLayout, QVBoxLayout, QHBoxLayout, QGroupBox, QDialog
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
-from ms2analyte.file_handling import data_import
+
 import pyqtgraph.console
 from collections import namedtuple
 from itertools import chain
-
-
+import glob
+from pathlib import Path
+from ms2analyte.file_handling import data_import
+from ms2analyte.visualizations import file_open_model
+from pyteomics import mgf, auxiliary
+import numpy
+from matchms import Spectrum
+from matchms.exporting import save_as_mgf
+from zipfile import ZipFile
 
 
 # Handle high resolution displays:
@@ -34,19 +41,31 @@ if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+
+
+
+
 ########### Data Import #################
 lastClicked = []
 clickedPen = pg.mkPen('s', width=5)
+
+clickedPen_legend = pg.mkPen('s', width=3)
+lastClicked_legend = []
+
+
+
 def fetch_sample_list(input_structure, input_type):
 	sample_list = data_import.name_extract(input_structure, input_type)
-	
+
+
 	return sample_list
 
 
 
 #######################################################################################
 def import_dataframe(input_structure, input_type, sample_name):
-	with open((os.path.join(input_structure.output_directory, input_type, sample_name + "_all_replicates_blanked_dataframe.pickle")), 'rb') as f:
+
+	with open((os.path.join(input_structure.output_directory, input_type, sample_name + "_all_replicates_dataframe.pickle")), 'rb') as f:
 		df = pickle.load(f)
 	f.close()
 
@@ -80,10 +99,10 @@ def import_ms1_dataframe(input_structure, input_type, sample_name):
 
 	while b < len(inputdata):
 		i = 0
-		while i <len(inputdata[b].replicate_analyte_spectrum):
+		while i <len(inputdata[b].replicate_analyte_ms1_spectrum):
 			replicate_analyte_id.append(inputdata[b].replicate_analyte_id)
-			average_mass.append(inputdata[b].replicate_analyte_spectrum[i].average_mass)
-			relative_intensity.append(inputdata[b].replicate_analyte_spectrum[i].relative_intensity)
+			average_mass.append(inputdata[b].replicate_analyte_ms1_spectrum[i].average_mass)
+			relative_intensity.append(inputdata[b].replicate_analyte_ms1_spectrum[i].relative_intensity)
 			i+=1
 
 
@@ -265,13 +284,262 @@ def import_ms1_dataframe(input_structure, input_type, sample_name):
 
 	return df_combine, df_combine2, df_combine3
 
+
+
+def import_ms2_dataframe(input_structure, input_type, sample_name):
+
+
+
+	with open((os.path.join(input_structure.output_directory, input_structure.experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
+		experiment_info = pickle.load(f)
+
+
+
+
+
+
+	if experiment_info.ms2_type == 'DIA':
+
+		with open((os.path.join(input_structure.output_directory, input_type, sample_name + '_replicate_analyte_mass_spectra.pickle')), 'rb') as f:
+
+
+			inputdata = pickle.load(f)
+			
+
+		b = 0
+		replicate_analyte_id = []
+		average_mass = []
+		relative_intensity = []
+
+
+		
+		while b < len(inputdata):
+
+
+
+
+			if inputdata[b].replicate_analyte_ms2_spectrum is not None:
+				length_ms2 = len(inputdata[b].replicate_analyte_ms2_spectrum)
+				i = 0
+				while i < length_ms2:
+
+
+					replicate_analyte_id.append(inputdata[b].replicate_analyte_id)
+					average_mass.append(inputdata[b].replicate_analyte_ms2_spectrum[i].average_mass)
+					relative_intensity.append(inputdata[b].replicate_analyte_ms2_spectrum[i].relative_intensity)
+					i+=1
+			else:
+				b+=1
+
+
+			b+=1
+
+
+
+		np.round(average_mass,1)
+		relative_intensity_zeros = [0]*len(relative_intensity)
+		average_mass_lower = [0]*len(average_mass)
+		i=0
+		while i < len(average_mass):
+			average_mass_lower[i] = average_mass[i] - 0.0001
+			i+=1
+
+		average_mass_upper = [0]*len(average_mass)
+		i=0
+		while i < len(average_mass):
+			average_mass_upper[i] = average_mass[i] + 0.0001
+			i+=1
+
+		data1 = {'replicate_analyte_id': replicate_analyte_id,
+				'average_mass': average_mass,
+				'relative_intensity': relative_intensity
+				}
+		data2 = {'replicate_analyte_id': replicate_analyte_id,
+				'average_mass': average_mass_upper,
+				'relative_intensity': relative_intensity_zeros
+				}
+
+		data3 = {'replicate_analyte_id': replicate_analyte_id,
+				'average_mass': average_mass_lower,
+				'relative_intensity': relative_intensity_zeros
+				}
+
+		df1 = pandas.DataFrame (data1, columns = ['replicate_analyte_id', 'average_mass','relative_intensity'])
+
+		df2 = pandas.DataFrame (data2, columns = ['replicate_analyte_id', 'average_mass','relative_intensity'])
+
+		df3 = pandas.DataFrame (data3, columns = ['replicate_analyte_id', 'average_mass','relative_intensity'])
+
+
+		df_combine = [df1,df2,df3]
+
+		df_combine = pandas.concat(df_combine)
+
+
+	if experiment_info.ms2_type == 'DDA':
+
+
+
+
+		with open((os.path.join(input_structure.output_directory,input_type,  sample_name + '_R1_analytes.pickle')), 'rb') as f:
+
+
+			inputdata = pickle.load(f)
+
+
+
+
+		Total_Analytes = len(inputdata)
+
+
+
+		Analyte_List = []
+
+		ms1_List = []
+
+		ms1_rt_List = []
+
+		ms2_List = []
+
+
+		Intensity_List = []
+
+
+		i = 0
+		while i <  Total_Analytes:
+
+			b = 0
+			Total_Av_Mass = len(inputdata[i].peak_list)
+			while b < Total_Av_Mass:
+
+				if inputdata[i].peak_list[b].dda_data is not None:
+					c = 0
+					DDA_Length = len(inputdata[i].peak_list[b].dda_data[0])
+
+				
+					while c < DDA_Length:
+
+						Analyte_List.append(inputdata[i].analyte_id)
+						ms1_List.append(inputdata[i].peak_list[b].average_mass)
+						ms1_rt_List.append(inputdata[i].peak_list[b].rt)
+						ms2_List.append(inputdata[i].peak_list[b].dda_data[0][c])
+						Intensity_List.append(inputdata[i].peak_list[b].dda_data[1][c])
+						c+=1
+				else:
+					pass
+				b+=1
+			i+=1
+
+
+
+
+
+		intensity_zeros = [0]*len(Intensity_List)
+
+
+
+
+
+		ms2_lower = [0]*len(ms2_List)
+		i=0
+		while i < len(ms2_List):
+			ms2_lower[i] = ms2_List[i] - 0.0001
+			i+=1
+
+		ms2_upper = [0]*len(ms2_List)
+		i=0
+		while i < len(ms2_List):
+			ms2_upper[i] = ms2_List[i] + 0.0001
+			i+=1
+
+
+		data1 = {'analyte_id': Analyte_List,
+				'ms1_average_mass': ms1_List,
+				'ms1_rt': ms1_rt_List,
+				'ms2_data': ms2_List,
+				'Intensity': Intensity_List
+				}
+
+
+		data2 = {'analyte_id': Analyte_List,
+				'ms1_average_mass': ms1_List,
+				'ms1_rt': ms1_rt_List,
+				'ms2_data': ms2_lower,
+				'Intensity': intensity_zeros
+				}
+
+
+		data3 = {'analyte_id': Analyte_List,
+				'ms1_average_mass': ms1_List,
+				'ms1_rt': ms1_rt_List,
+				'ms2_data': ms2_upper,
+				'Intensity': intensity_zeros
+				}
+
+		df1 = pandas.DataFrame (data1, columns = ['analyte_id', 'ms1_average_mass','ms1_rt','ms2_data','Intensity'])
+		df2 = pandas.DataFrame (data2, columns = ['analyte_id', 'ms1_average_mass','ms1_rt','ms2_data','Intensity'])
+		df3 = pandas.DataFrame (data3, columns = ['analyte_id', 'ms1_average_mass','ms1_rt','ms2_data','Intensity'])
+
+
+		df_combine = [df1,df2,df3]
+
+		df_combine = pandas.concat(df_combine)
+
+
+
+
+
+
+
+
+
+	return df_combine
 	
 #################################################################################################
 #### Fetch Input Structure, Input type and Sample name list
 
 input_structure = data_import.input_data_structure()
+
+
 input_type = "Samples"
-sample_names = fetch_sample_list(input_structure, input_type)
+
+
+path_name_list = []
+for path in Path(input_structure.output_directory).rglob('*parameters.pickle'):
+	
+	path_name_list.append(path.name)
+path_name = str(path_name_list[0])
+print(path_name)
+
+
+
+
+
+
+
+object1 = pandas.read_pickle((os.path.join(input_structure.output_directory, path_name)))
+
+print(object1.experiment_name)
+print(object1.sample_directory)
+
+
+# objects = []
+# with (open(os.path.join(input_structure.output_directory,  'ms2_experiment_experiment_import_parameters.pickle'), "rb")) as openfile:
+#     while True:
+#         try:
+#             objects.append(pickle.load(openfile))
+#         except EOFError:
+#             break
+# with open((os.path.join(input_structure.output_directory, input_type, 'ms2_experiment_experiment_import_parameters.pickle'), 'rb')) as f:
+
+# 	input_data = pickle.load(f)
+
+
+
+
+sample_names = fetch_sample_list(object1, input_type)
+
+print('SAMPLE NAMES',sample_names)
 
 
 #################################### Start GUI  ##################################################
@@ -291,13 +559,13 @@ class State:
 
 	def return_null_state(self):
 
-		# print("State:", self.null)
+
 		return self.null
 
 
 	def return_blank_state(self):
 
-		# print("State:", self.blank)
+
 		return self.blank
 
 
@@ -340,12 +608,12 @@ class Tab_State:
 
 	def return_sample_state(self):
 
-		# print("Sample State:", self.sample_state)
+
 		return self.sample_state
 
 	def return_replicate_state(self):
 
-		# print("Replicate State:", self.replicate_state)
+
 		return self.replicate_state
 
 	def return_experiment_state(self):
@@ -409,6 +677,7 @@ class Window (QDialog):
 		self.region_1()
 		self.Plot_Sample()
 		self.Plot_ms1()
+		self.Plot_ms2()
 		self.Plot_Analyte_Legend()
 		windowLayout = QVBoxLayout()
 		# windowLayout.setStyleSheet("background-color: white;")
@@ -512,6 +781,7 @@ class Window (QDialog):
 
 
 		self.btn2 = QPushButton("Sample", self)
+		self.btn2.clicked.connect(self.loading_sample)
 		self.btn2.clicked.connect(self.Sample_Plot_DF)
 		self.btn2.clicked.connect(self.show_sample)
 		self.btn2.clicked.connect(self.Plot_Sample)
@@ -522,9 +792,11 @@ class Window (QDialog):
 		# self.btn2.resize(buttonX,buttonY)
 		# self.btn2.move(20 + buttonmoveX,100 + buttonmoveY)
 		self.btn2.setDisabled(True)
+		self.btn2.setStyleSheet('background-color : lightgreen')
 
 		
 		self.btn3 = QPushButton("Replicate", self)
+		self.btn3.clicked.connect(self.loading_replicate)
 		self.btn3.clicked.connect(self.Replicate_Plot_DF)
 		self.btn3.clicked.connect(self.show_replicate)
 		self.btn3.clicked.connect(self.Plot_Replicate)
@@ -538,6 +810,7 @@ class Window (QDialog):
 		# self.btn3.move(170 + buttonmoveX,100 + buttonmoveY)
 
 		self.btn4 = QPushButton("Experiment", self)
+		self.btn4.clicked.connect(self.loading_experiment)
 		self.btn4.clicked.connect(self.Diversity_Plot_DF)
 		self.btn4.clicked.connect(self.show_experiment)
 		self.btn4.clicked.connect(self.Plot_Experiment)
@@ -548,6 +821,7 @@ class Window (QDialog):
 		# self.btn4.move(320 + buttonmoveX,100 + buttonmoveY)
 		
 		self.btn5 = QPushButton("Diversity", self)
+		self.btn5.clicked.connect(self.loading_diversity)
 		self.btn5.clicked.connect(self.Diversity_Plot_DF)
 		self.btn5.clicked.connect(self.show_diversity)
 		self.btn5.clicked.connect(self.Plot_Diversity)
@@ -588,8 +862,9 @@ class Window (QDialog):
 		self.comboBox.currentTextChanged.connect(self.Replicate_Plot_DF)
 		self.comboBox.currentTextChanged.connect(self.Plot_Replicate)
 		self.comboBox.currentTextChanged.connect(self.Plot_ms1)
+		self.comboBox.currentTextChanged.connect(self.Plot_ms2)
 
-
+		print('SAMPLE NAMES',sample_names)
 		n = 0
 		while n < len(sample_names):
 			self.comboBox.addItem(sample_names[n])
@@ -616,6 +891,8 @@ class Window (QDialog):
 		self.chooseAnalyte.currentTextChanged.connect(self.Plot_Replicate)
 		self.chooseAnalyte.currentTextChanged.connect(self.ms1_Plot_DF)
 		self.chooseAnalyte.currentTextChanged.connect(self.Plot_ms1)
+		self.chooseAnalyte.currentTextChanged.connect(self.ms2_Plot_DF)
+		self.chooseAnalyte.currentTextChanged.connect(self.Plot_ms2)
 		self.chooseAnalyte.currentTextChanged.connect(self.Plot_Analyte_Legend)
 		self.chooseAnalyte.addItem('Sample Analyte ID')
 		self.chooseAnalyte.addItem('Replicate Analyte ID')
@@ -670,8 +947,18 @@ class Window (QDialog):
 
 		self.ms1_rightButton = QToolButton(self)
 		self.ms1_rightButton.setArrowType(Qt.RightArrow)
+		self.ms1_rightButton.clicked.connect(self.Plot_ms1)
+		self.ms1_rightButton.clicked.connect(self.Plot_ms2)
 		self.ms1_leftButton = QToolButton(self)
 		self.ms1_leftButton.setArrowType(Qt.LeftArrow)
+		self.ms1_leftButton.clicked.connect(self.Plot_ms1)
+		self.ms1_leftButton.clicked.connect(self.Plot_ms2)
+		self.lock_aspect = QPushButton(self)
+
+		self.lock_aspect.setCheckable(True) 
+		self.lock_aspect.setIcon(QIcon('Unlock_icon.png'))
+		self.lock_aspect.clicked.connect(self.Plot_ms1)
+		self.lock_aspect.clicked.connect(self.Plot_ms2)
 
 
 
@@ -711,9 +998,19 @@ class Window (QDialog):
 		self.mMinBox.textChanged.connect(self.mMinLimit)
 
 
+		total_df_test = import_dataframe(input_structure, input_type, comboText)
+
+
+		max_mass = total_df_test[total_df_test.mz == total_df_test.mz.max()].mz
+		
+		max_mass_value = max_mass.to_numpy()
+
+		max_rt = total_df_test[total_df_test.rt == total_df_test.rt.max()].rt
+		
+		max_rt_value = max_rt.to_numpy()
 
 		self.mMaxBox = QLineEdit(self)
-		self.mMaxBox.setText('1200')
+		self.mMaxBox.setText(str(round(max_mass_value[0])+1))
 		self.mMaxBox.setValidator(QIntValidator())
 		self.mMaxBox.setValidator(QRegExpValidator())
 		self.mMaxBox.setAlignment(Qt.AlignRight)
@@ -733,7 +1030,7 @@ class Window (QDialog):
 
 
 		self.rtMaxBox = QLineEdit(self)
-		self.rtMaxBox.setText('7')
+		self.rtMaxBox.setText(str(round(max_rt_value[0])+1))
 		self.rtMaxBox.setValidator(QIntValidator())
 		self.rtMaxBox.setValidator(QRegExpValidator())
 		self.rtMaxBox.setAlignment(Qt.AlignRight)
@@ -754,7 +1051,7 @@ class Window (QDialog):
 
 		if self.massCheckbox.isChecked() == False:
 			self.mMinBox.setText('0')
-			self.mMaxBox.setText('1200')
+			self.mMaxBox.setText(str(round(max_mass_value[0])+1))
 
 
 		
@@ -804,6 +1101,7 @@ class Window (QDialog):
 		self.comboAnalyte.currentTextChanged.connect(self.Plot_Sample)
 
 		self.comboAnalyte.currentTextChanged.connect(self.Plot_ms1)
+		self.comboAnalyte.currentTextChanged.connect(self.Plot_ms2)
 		# else:
 		# 	pass
 		#if Sample_State == True and Replicate_State == False:
@@ -843,8 +1141,9 @@ class Window (QDialog):
 
 		self.export_csv = QPushButton("CSV",self)
 		self.export_csv.clicked.connect(self.sample_export)
-		self.export_mzml = QPushButton("mzML",self)
-		# self.export_mgf = QPushButton("MZML",self)
+		self.export_mgf = QPushButton("MGF",self)
+		self.export_mgf.clicked.connect(self.ms1_DF_Export)
+		# self.export_mgf = QPushButton("mgf",self)
 		self.export_label_1 = QLabel('m/z and Retention Time')
 		self.export_label_1.setFont(QFont('Times', 10))
 		self.export_label_2 = QLabel('MS<sup>1</sup> and MS<sup>2</sup>')
@@ -974,7 +1273,7 @@ class Window (QDialog):
 		layoutRegion4.addWidget(self.export_label_1,17,0,QtCore.Qt.AlignCenter)
 		layoutRegion4.addWidget(self.export_csv,18,0)
 		layoutRegion4.addWidget(self.export_label_2,17,1,QtCore.Qt.AlignCenter)
-		layoutRegion4.addWidget(self.export_mzml,18,1)
+		layoutRegion4.addWidget(self.export_mgf,18,1)
 		layoutRegion4.addWidget(self.Line6,19,0,1,3)
 		layoutRegion4.addWidget(self.c,20,0,1,2)
 		# layoutRegion4.addWidget(self.space_label1,0,0)
@@ -1020,6 +1319,8 @@ class Window (QDialog):
 		self.ms2_plot.setTitle("MS<sup>2</sup> Spectra")
 		self.ms2_plot.setLabel(axis='left',text='Intensity',**{ 'font-size': '10pt'})
 		self.ms2_plot.setMouseEnabled(x=True, y=False)
+
+
 ################################################# Replicate
 
 ############# Replicate #############################
@@ -1137,10 +1438,8 @@ class Window (QDialog):
 
 
 
-		layoutRegion10 = QGridLayout()
-		layoutRegion10.addWidget(self.ms1_leftButton,2,1,QtCore.Qt.AlignLeft)
-		layoutRegion10.addWidget(self.ms1_rightButton,2,1,QtCore.Qt.AlignRight)
-		
+
+
 
 
 		layoutRegion6 = QGridLayout()
@@ -1151,6 +1450,17 @@ class Window (QDialog):
 
 		layoutRegion8.addWidget(self.div_plot,1,0)
 
+
+
+		# layoutRegion10 = QGridLayout()
+		# layoutRegion10.addWidget(self.ms1_leftButton,2,1,QtCore.Qt.AlignLeft)
+		# layoutRegion10.addWidget(self.ms1_rightButton,2,1,QtCore.Qt.AlignRight)
+
+		layoutRegion11 = QGridLayout()
+		layoutRegion11.addWidget(self.lock_aspect,2,2,QtCore.Qt.AlignCenter)
+		layoutRegion11.addWidget(self.ms1_rightButton,2,1,QtCore.Qt.AlignCenter)
+		layoutRegion11.addWidget(self.ms1_leftButton,2,0,QtCore.Qt.AlignCenter)
+		layoutRegion11.setContentsMargins(375, 50, 5, 5)
 
 
 ############# Create Main Grid ###############################
@@ -1172,7 +1482,8 @@ class Window (QDialog):
 		layoutMain.addLayout(layoutRegion8,1,0, 1,1)
 
 		layoutMain.addLayout(layoutRegion9,1,2)
-		layoutMain.addLayout(layoutRegion10,1,1,QtCore.Qt.AlignTop)
+		# layoutMain.addLayout(layoutRegion10,1,1,QtCore.Qt.AlignTop)
+		layoutMain.addLayout(layoutRegion11,1,1)
 
 
 ############################################################################
@@ -1193,7 +1504,22 @@ class Window (QDialog):
 ################### Plots #################################
 
 
+	def loading_sample(self):
+		self.c.clear()
+		self.c.append('Loading Sample Tab...')
 
+
+	def loading_replicate(self):
+		self.c.clear()
+		self.c.append('Loading Replicate Tab...')
+
+	def loading_experiment(self):
+		self.c.clear()
+		self.c.append('Loading Experiment Tab...')
+
+	def loading_diversity(self):
+		self.c.clear()
+		self.c.append('Loading Diversity Tab...')
 
 	def fill_combobox(self):
 
@@ -1320,10 +1646,12 @@ class Window (QDialog):
 			p.resetPen()
 
 
-		print('TEST')
+
 		self.c.append('_____________________________________________')
 		self.c.append('\nData Selected')
+
 		comboText=self.comboBox.currentText()
+
 		total_df = import_dataframe(input_structure, input_type, comboText)
 
 
@@ -1332,6 +1660,7 @@ class Window (QDialog):
 		for p in points:
 
 			p.resetPen()
+
 			p.setPen(clickedPen)
 
 			p = p.pos()
@@ -1346,20 +1675,23 @@ class Window (QDialog):
 			analyte_id = info_df.analyte_id.to_numpy()
 
 			retention_time = info_df.rt.to_numpy()
-			drift_time = info_df.drift.to_numpy()
-			blank = info_df.blank_analyte.to_numpy()
 
+			drift_time = info_df.drift.to_numpy()
+
+			# blank = info_df.blank_analyte.to_numpy()
+			# print('Clicked Test 20')
+			
 			
 	
 			self.c.append('---------------------------------')
 			self.c.append('Analyte ID: '+ str(analyte_id[0]))
 			self.c.append('---------------------------------')
-			self.c.append('m/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
-			self.mz_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
+			self.c.append('m/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0]))
+			self.mz_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0]))
 
-			self.mz_r1_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
-			self.mz_r2_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
-			self.mz_r3_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]))
+			self.mz_r1_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0]))
+			self.mz_r2_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0]))
+			self.mz_r3_plot.setToolTip('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0]))
 
 			# text = pg.TextItem('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]),color=(0,0,0))
 			# self.mz_plot.addItem(text)
@@ -1368,7 +1700,56 @@ class Window (QDialog):
 			# text.setPos(1000, 300000)
 		lastClicked = points
 
+	def clicked_Legend(self, plot, points):
 
+
+		global lastClicked_legend
+
+
+
+
+		for p in lastClicked_legend:
+
+
+			p.resetPen()
+
+
+
+
+
+		comboText=self.comboBox.currentText()
+
+
+
+
+		indexes = []
+
+		for p in points:
+
+			p.resetPen()
+
+			p.setPen(clickedPen_legend)
+
+			p = p.pos()
+
+			x = float(p[0])
+
+			y = float(p[1])
+
+
+			# blank = info_df.blank_analyte.to_numpy()
+			# print('Clicked Test 20')
+			
+			
+	
+
+
+			# text = pg.TextItem('Data Selected\n'+'\nAnalyte ID: '+ str(analyte_id[0])+'\nm/z: '+str(x)+' \nIntensity: '+str(y)+' \nRetention Time: '+str(retention_time[0])+' \nDrift Time: '+str(drift_time[0])+' \nBlank: '+str(blank[0]),color=(0,0,0))
+			# self.mz_plot.addItem(text)
+
+
+			# text.setPos(1000, 300000)
+		lastClicked_legend = points
 
 
 	def ms1_clicked(self, plot, points):
@@ -1382,8 +1763,7 @@ class Window (QDialog):
 		lastClicked = []
 		print('PLOT SAMPLE BEGIN')
 		
-		self.c.append('Plotting Sample..')
-		self.c.update()
+
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
@@ -1393,7 +1773,7 @@ class Window (QDialog):
 		Toggle_rt = state.return_Toggle_rt()
 
 		if Sample_State == False:
-			self.c.append('Plotting Sample...')
+
 			self.c.update()
 			chooseAnalyte = self.chooseAnalyte.currentText()
 			self.mz_plot.disableAutoRange(axis=None)
@@ -1408,7 +1788,7 @@ class Window (QDialog):
 			############### Fetch data for mz_plot and plot sample from comboBox ###############
 
 			sorted_df_mz, sorted_df_rt= self.Sample_Plot_DF()
-
+			print('ANALYTE ID 2',sorted_df_mz[sorted_df_mz.analyte_id == 2])
 
 
 
@@ -1637,8 +2017,7 @@ class Window (QDialog):
 
 
 			if Toggle_rt == False:
-				self.c.append('Plotting Sample....')
-				self.c.update()
+
 				if comboAnalyte != "Show All":
 					alpha=1
 					print('Loading Sample Tab..')
@@ -2753,7 +3132,7 @@ class Window (QDialog):
 			self.rt_r3_plot.setXRange(float(state.return_rtMin_state()),float(state.return_rtMax_state()))
 		else:
 			pass
-		print('Replicate Tab Loaded Succesfully')
+		self.c.append('Replicate Tab Loaded Succesfully')
 		print('PLOT REPLICATE END')
 		return
 
@@ -2879,7 +3258,7 @@ class Window (QDialog):
 
 		self.ex_bOn_plot.enableAutoRange(axis=None)
 		print('PLOT EXPERIMENT END')
-
+		self.c.append('Experiment Tab Loaded Succesfully')
 
 
 
@@ -3020,9 +3399,11 @@ class Window (QDialog):
 		else:
 			pass
 		self.div_plot.enableAutoRange(axis=None)
-		print('Diversity Tab Loaded Succesfully')
+		self.c.append('Diversity Tab Loaded Succesfully')
 ##################################################################################################################	
 		print('PLOT DIVERSITY END')
+
+
 		return 
 
 
@@ -3033,6 +3414,16 @@ class Window (QDialog):
 		chooseAnalyte = self.chooseAnalyte.currentText()
 		comboAnalyte=self.comboAnalyte.currentText()
 		comboText=self.comboBox.currentText()
+
+
+
+
+
+
+
+
+
+
 		self.ms1_plot.clear()
 		# self.ms1_plot.setLimits(ymin=0, ymax=100000)
 		df, df2 , df3= self.ms1_Plot_DF()
@@ -3047,7 +3438,7 @@ class Window (QDialog):
 			analyte_id_array = []
 
 			if comboAnalyte != "Show All":
-		
+				
 				for analyte_id in df.replicate_analyte_id.unique():
 					ms1_data.append([df[df["replicate_analyte_id"] == analyte_id]["relative_intensity"].to_numpy(),
 				                     df[df["replicate_analyte_id"] == analyte_id]["average_mass"].to_numpy()])
@@ -3079,12 +3470,20 @@ class Window (QDialog):
 						while i < len(analyte[1]):
 							np.round(analyte[1],2)
 							np.round(analyte[0],2)
-							if analyte[0][i] > 0:
+							if analyte[0][i] > 10:
+
+
+
+
+
+	
 								text = pg.TextItem(str(np.round(analyte[1][i],4)),color=(0,0,0))
 								self.ms1_plot.addItem(text)
 
 
 								text.setPos(float(analyte[1][i]), float(analyte[0][i]) + 5)
+								
+
 								i+=1
 							else:
 								i+=1
@@ -3097,11 +3496,8 @@ class Window (QDialog):
 
 
 
-
+		################# Sample Analyte ID ms1 Data #####################
 		if chooseAnalyte == "Sample Analyte ID":
-			self.ms1_plot.setXRange(min=0,max=1200)
-			self.ms1_plot.setYRange(min=16000, max=300000)
-
 
 
 
@@ -3111,23 +3507,56 @@ class Window (QDialog):
 
 			if comboAnalyte != "Show All":
 
+
+
+
+
 				df=df2[df2.analyte_id == float(comboAnalyte)]
+
+
+				########## Set Max and Min #################
+
+				mz_range_upper = df[df.mz == max(df.mz)].mz
+				mz_range_upper = mz_range_upper.to_numpy()
+				mz_range_lower = df[df.mz == min(df.mz)].mz
+				mz_range_lower = mz_range_lower.to_numpy()
+
+				self.ms1_plot.setXRange(min=mz_range_lower[0] - 5,max=mz_range_upper[0]+5)
+				self.ms1_plot.setYRange(min=16000, max=300000)
+
+				print('df sorted by chosen analyte',df)
+
+
+
+
+				#### Find the max number in intensity column
+
+
 				max_scan = df[df.intensity == df.intensity.max()].scan
+				print('MAX SCAN DF',max_scan)
 
 
 				max_scan_value = max_scan.to_numpy()
+				print('MAX SCAN',max_scan_value)
 
-				df=df[df.scan == max_scan_value[0]]
+
+				df= df[df.scan == max_scan_value[0]]
+				print('DF sorted by max scan value',df)
+
+
 				df.sort_values('scan', inplace=True)
 
 
 
-
-
 				mz_array = df['mz'].to_numpy()
+
+				print('mz array',mz_array)
 				intensity_array = df['intensity'].to_numpy()
+				print('intensity array',intensity_array)
 
 
+
+				################# Create lists of zero's ###############
 
 				intensity_zeros = [0]*len(intensity_array)
 				mass_lower = [0]*len(mz_array)
@@ -3144,13 +3573,24 @@ class Window (QDialog):
 				    mass_upper[i] = mz_array[i] + 0.0001
 				    i+=1
 
+
+
+
+			    ################## Create Data Frames ####################
+
+
+
+
+				##################### mz values ######################
 				data1 = {'mz': mz_array,
 				        'intensity': intensity_array
 				        }
+
+				##################### upper zeros ######################
 				data2 = {'mz': mass_upper,
 				        'intensity': intensity_zeros
 				        }
-
+				##################### lower zeros ######################
 				data3 = {'mz': mass_lower,
 				        'intensity': intensity_zeros
 				        }
@@ -3161,12 +3601,18 @@ class Window (QDialog):
 
 				df_3 = pandas.DataFrame (data3, columns = ['mz','intensity'])
 
-
+				#### Combine Data Frames #######
 				df_combine = [df_1,df_2,df_3]
 
 				df_combine = pandas.concat(df_combine)
 
 				df_combine.sort_values('mz', inplace=True)
+
+
+				print("DF COMBINE 1", df_combine)
+
+
+
 
 
 				mz_array = df_combine['mz'].to_numpy()
@@ -3222,6 +3668,102 @@ class Window (QDialog):
 					colour +=1
 
 
+				with open((os.path.join(input_structure.output_directory, input_structure.experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
+					experiment_info = pickle.load(f)
+
+				if experiment_info.ms2_type == 'DDA':
+					ms2 = import_ms2_dataframe(input_structure, input_type, comboText)
+
+					ms2_sorted = ms2[ms2.analyte_id == float(comboAnalyte)]
+					
+					unique_mass = []
+
+					for average_mass in ms2_sorted.ms1_average_mass.unique():
+						unique_mass.append(average_mass)
+
+					unique_mass = np.round_(unique_mass, decimals = 5)
+					print('UNIQUE MASS',unique_mass)
+					df_combine = df_combine.round(4)
+					print('DF COMBINE',df_combine)
+					test1, test2 , test3= self.ms1_Plot_DF()
+
+
+					print('ms1 Data',test2[test2.analyte_id == 5])
+					print('ms2',ms2[ms2.analyte_id == 5])
+
+
+
+
+					unique_intensity = []
+					j = 0
+					i = 0
+					while j < len(unique_mass):
+						mass_upper_lower = []
+						
+						intensity_upper_lower = []
+
+						value = format(float(unique_mass[j]), '.4f')
+						print(value)
+						sample_analyte_df_sorted = df_combine[df_combine.mz == float(value)]
+
+
+
+						mass_upper_lower.append(float(unique_mass[j]) - 0.0001)
+						mass_upper_lower.append(float(unique_mass[j]))
+						mass_upper_lower.append(float(unique_mass[j]) + 0.0001)
+
+						print('SAMPLE ANLAYTE DF SORTED',sample_analyte_df_sorted)
+						unique_intensity.append(sample_analyte_df_sorted.intensity.to_numpy())
+						print('TEST1')
+						intensity_upper_lower.append(0)
+						print('TEST2')
+						intensity_upper_lower.append(float(unique_intensity[j][0]))
+						print('TEST3')
+						intensity_upper_lower.append(0)
+
+
+						print(mass_upper_lower)
+						print(intensity_upper_lower)
+						# print("Unique Intensity", unique_intensity)
+						# print("Unique Intensity", unique_intensity[0][0])
+						# print(mass_upper_lower)
+						# print(intensity_upper_lower)
+
+						pen = pg.mkPen(color=(255, 0, 0))
+						
+						self.ms1_plot.plot( x=mass_upper_lower, y=intensity_upper_lower,pen=pen)
+
+
+
+
+
+						
+						mass_upper_lower = []
+						
+						intensity_upper_lower = []
+
+						value = format(float(unique_mass[i]), '.4f')
+						print(value)
+						sample_analyte_df_sorted = df_combine[df_combine.mz == float(value)]
+
+						mass_upper_lower.append(float(unique_mass[i]) - 0.0001)
+						mass_upper_lower.append(float(unique_mass[i]))
+						mass_upper_lower.append(float(unique_mass[i]) + 0.0001)
+
+
+						unique_intensity.append(sample_analyte_df_sorted.intensity.to_numpy())
+						intensity_upper_lower.append(0)
+						intensity_upper_lower.append(float(unique_intensity[i][0]))
+						intensity_upper_lower.append(0)
+						pen = pg.mkPen(color=(0, 128, 0))
+						
+						self.ms1_plot.plot( x=mass_upper_lower, y=intensity_upper_lower,pen=pen)
+						
+
+		
+
+						j+=1
+
 
 
 		if chooseAnalyte == "Experiment Analyte ID":
@@ -3275,6 +3817,151 @@ class Window (QDialog):
 			# self.ms1_plot.enableAutoRange(axis=None)
 		print('PLOT MS1 END')
 		return
+
+
+
+
+
+
+
+
+
+
+
+	def Plot_ms2(self):
+
+
+
+		with open((os.path.join(input_structure.output_directory, input_structure.experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
+			experiment_info = pickle.load(f)
+
+
+
+
+			print('PLOT MS2 BEGIN')
+			chooseAnalyte = self.chooseAnalyte.currentText()
+			comboAnalyte=self.comboAnalyte.currentText()
+			comboText=self.comboBox.currentText()
+
+
+			if self.lock_aspect.isChecked():
+
+				self.ms2_plot.setXLink(self.ms1_plot)
+				self.lock_aspect.setIcon(QIcon('Lock_icon.png'))
+			# if it is unchecked 
+			else: 
+
+				self.ms2_plot.setXLink(self.ms2_plot)
+				self.lock_aspect.setIcon(QIcon('Unlock_icon.png'))
+
+		if experiment_info.ms2_type == 'DIA':
+	
+
+
+
+
+
+
+
+			self.ms2_plot.clear()
+
+
+			# self.ms1_plot.setLimits(ymin=0, ymax=100000)
+			df= self.ms2_Plot_DF()
+
+			# self.ms1_plot.disableAutoRange(axis=None)
+			print('PLOT MS2 BEGIN')
+			if chooseAnalyte == "Replicate Analyte ID":
+				print('PLOT MS2 BEGIN')
+				self.ms2_plot.setXRange(min=0,max=1200)
+				self.ms2_plot.setYRange(min=6, max=100)
+				# self.ms1_plot.setLimits(ymin=0, ymax=100)
+				ms2_data = []
+				analyte_id_array = []
+				print('PLOT MS2 BEGIN')
+				if comboAnalyte != "Show All":
+					print('PLOT MS2 BEGIN')
+					for analyte_id in df.replicate_analyte_id.unique():
+
+						ms2_data.append([df[df["replicate_analyte_id"] == analyte_id]["relative_intensity"].to_numpy(),
+					                     df[df["replicate_analyte_id"] == analyte_id]["average_mass"].to_numpy()])
+						analyte_id_array.append(analyte_id)
+					analyte_colour_array = [0]*len(analyte_id_array)
+					print('PLOT MS2 BEGIN')
+
+
+					i = 0
+					while i < len(analyte_id_array):
+						analyte_colour_array[i] = int((analyte_id_array[i] + 1) % 299)
+						i+=1
+					print('PLOT MS2 BEGIN')
+
+
+					colour=0
+					self.ms2_plot.clear()
+					print('PLOT MS2 BEGIN')
+					for analyte in ms2_data:
+						print('PLOT MS2 BEGIN')
+						
+
+						if float(comboAnalyte) == analyte_id_array[colour]:
+
+							pen = pg.mkPen(color=(0, 0, 0))
+							self.test = self.ms2_plot.plot( x=analyte[1], y=analyte[0], pen=pen )
+
+
+
+							i = 0
+							while i < len(analyte[1]):
+								np.round(analyte[1],2)
+								np.round(analyte[0],2)
+								if analyte[0][i] > 0:
+									text = pg.TextItem(str(np.round(analyte[1][i],4)),color=(0,0,0))
+									self.ms2_plot.addItem(text)
+
+
+									text.setPos(float(analyte[1][i]), float(analyte[0][i]) + 5)
+									i+=1
+								else:
+									i+=1
+						else:
+
+							pass
+						colour +=1
+
+				# self.ms1_plot.enableAutoRange(axis=None)
+
+
+
+
+			if chooseAnalyte == "Sample Analyte ID":
+				pass
+
+
+
+
+			if chooseAnalyte == "Experiment Analyte ID":
+				pass
+					
+				# self.ms1_plot.enableAutoRange(axis=None)
+			print('PLOT MS2 END')
+
+
+
+		if experiment_info.ms2_type == 'DDA':
+			pass
+		return
+
+
+
+
+
+
+
+
+
+
+
 	def Plot_Analyte_Legend(self):
 		print('PLOT ANALYTE LEGEND BEGIN')
 		self.analyte_legend.disableAutoRange(axis=None)
@@ -3388,8 +4075,8 @@ class Window (QDialog):
 			
 
 
-			self.analyte_legend.plot( x=x, y=y, pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=255),symbol='o', symbolSize=6)
-			
+			self.test = self.analyte_legend.plot( x=x, y=y, pen=None, symbolPen=pg.intColor( analyte_colour_mz_array[colour],  values=5, alpha=255), symbolBrush=pg.intColor( analyte_colour_mz_array[colour],values=5,alpha=255),symbol='o', symbolSize=6)
+			self.test.sigPointsClicked.connect(self.clicked_Legend)
 			colour+=1
 
 
@@ -3405,6 +4092,7 @@ class Window (QDialog):
 
 		print('PLOT ANALYTE LEGEND END')
 		# self.analyte_legend.enableAutoRange(axis=None)
+
 
 
 	def reset_all(self):
@@ -3437,17 +4125,27 @@ class Window (QDialog):
 
 
 	def Sample_Plot_DF(self):
+		comboText=self.comboBox.currentText()
 		print('SAMPLE PLOT DF BEGIN')
 		chooseAnalyte = self.chooseAnalyte.currentText()
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
 		Sample_State = tab_state.return_sample_state()
 		Replicate_State = tab_state.return_replicate_state()
 		Experiment_State = tab_state.return_experiment_state()
+		total_df_test = import_dataframe(input_structure, input_type, comboText)
+
+
+		max_mass = total_df_test[total_df_test.mz == total_df_test.mz.max()].mz
 		
+		max_mass_value = max_mass.to_numpy()
+
+		max_rt = total_df_test[total_df_test.rt == total_df_test.rt.max()].rt
+		
+		max_rt_value = max_rt.to_numpy()
 		if Sample_State == False:
 			if self.massCheckbox.isChecked() == False:
 				# if self.rtCheckbox.isChecked() == False:
-				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, 0, 7,self.Toggle_rt.isChecked())
+				state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, max_mass_value[0], 0, max_rt_value[0],self.Toggle_rt.isChecked())
 
 			#if self.rtCheckbox.isChecked() == False:
 			#	state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), self.mMinBox.text(), self.mMaxBox.text(), 0, 7)
@@ -3473,7 +4171,7 @@ class Window (QDialog):
 			############### Fetch data for mz_plot and plot sample from comboBox ###############
 
 			total_df = import_dataframe(input_structure, input_type, comboText)
-
+			print('ANALYTE ID 3',total_df[total_df.analyte_id == 2])
 
 
 			if chooseAnalyte == "Sample Analyte ID":
@@ -3494,7 +4192,7 @@ class Window (QDialog):
 				total_mz_df = total_mz_df[total_mz_df.rt < float(state.return_rtMax_state())]
 
 				sorted_df_mz = total_mz_df.sort_values(by=['mz'])
-
+				print('SORTED DF MZ',sorted_df_mz[sorted_df_mz.analyte_id == 2])
 
 				total_rt_df = total_df[total_df.mz > float(state.return_massMin_state())]
 
@@ -3571,6 +4269,7 @@ class Window (QDialog):
 
 			# df=df[df.scan == max_scan_value[0]]
 		print('SAMPLE PLOT DF END')
+		print('SORTED DF MZ 2', sorted_df_mz[sorted_df_mz.analyte_id == 2])
 		return sorted_df_mz, sorted_df_rt
 
 
@@ -3819,19 +4518,137 @@ class Window (QDialog):
 		comboText=self.comboBox.currentText()
 
 		df1, df2, df3 = import_ms1_dataframe(input_structure, input_type, comboText)
-		df4 = import_dataframe(input_structure, input_type, comboText)
+
+
+
+
+
+		df4 = import_dataframe(input_structure, input_type, comboText)   ############# Data frame for Sample level ms1 data
+
+
+
+
+
 		df1.sort_values('average_mass', inplace=True)
-		df2.sort_values('max_peak_intensity_mass', inplace=True)
 		df3.sort_values('average_mass', inplace=True)
 
 
 
-
-
+		################### include only first replicate for sample level ms1 data
+		print('original dataframe analyte 5',df4[df4.analyte_id == 8])
 		df=df4[df4.replicate == 1]
 
 
 		return df1, df, df3
+
+	def ms1_DF_Export(self):
+
+
+
+		comboText=self.comboBox.currentText()
+
+		df1, df2, df3 = import_ms1_dataframe(input_structure, input_type, comboText)
+		df1 = df1[df1.relative_intensity != 0]
+
+
+		ms2 = import_ms2_dataframe(input_structure, input_type, comboText)
+		ms2 = ms2[ms2.relative_intensity != 0]
+
+
+
+		ms2_data = []
+		ms1_data = []
+
+		analyte_list = []
+
+		count = 0
+		for analyte_id in df1.replicate_analyte_id.unique():
+			ms1_data.append([df1[df1["replicate_analyte_id"] == analyte_id]["relative_intensity"].to_numpy(),
+							 df1[df1["replicate_analyte_id"] == analyte_id]["average_mass"].to_numpy()])
+			count +=1
+
+		for analyte_id in ms2.replicate_analyte_id.unique():
+			ms2_data.append([df1[df1["replicate_analyte_id"] == analyte_id]["relative_intensity"].to_numpy(),
+							 df1[df1["replicate_analyte_id"] == analyte_id]["average_mass"].to_numpy()])
+			analyte_list.append(analyte_id)
+			count +=1
+
+
+
+		max_intensity = []
+		for analyte in ms1_data:
+			res = [x for x in range(len(analyte[0])) if analyte[0][x] == max(analyte[0])] 
+			max_intensity.append(max(analyte[1][res]))
+
+
+		
+		filename, _ = QFileDialog.getSaveFileName(self, "Save", os.getcwd()+os.sep+ 'ms_data', "ZIP Files (*.zip)")
+
+
+		if filename:
+			zipObj = ZipFile(filename, 'w')
+			i = 0
+			for analyte in ms2_data:
+
+				spectrum = Spectrum(mz=analyte[1],
+									intensities=analyte[0],
+									metadata={"Analyte": analyte_list[i],
+											"charge": +1,
+											"precursor_mz": max_intensity[i]})
+
+				
+
+				save_as_mgf(spectrum,'analyte_'+ str(analyte_list[i]) + '.mgf')
+				zipObj.write('analyte_'+ str(analyte_list[i]) + '.mgf')
+				os.remove('analyte_'+ str(analyte_list[i]) + '.mgf')
+				i+=1
+			
+			# if not filename: return 0
+			# if filename:
+
+
+			zipObj.close()
+
+				
+				
+
+
+
+
+		return
+
+
+	def ms2_Plot_DF(self):
+		comboText=self.comboBox.currentText()
+
+		with open((os.path.join(input_structure.output_directory, input_structure.experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
+			experiment_info = pickle.load(f)
+
+
+
+
+
+
+		if experiment_info.ms2_type == 'DIA':
+			ms2 = import_ms2_dataframe(input_structure, input_type, comboText)
+
+
+			ms2.sort_values('average_mass', inplace=True)
+			print(ms2[ms2.analyte_id == 1])
+
+
+
+		if experiment_info.ms2_type == 'DDA':
+			ms2 = import_ms2_dataframe(input_structure, input_type, comboText)
+
+
+			ms2.sort_values('ms2_data', inplace=True)
+			print(ms2[ms2.analyte_id == 2])
+
+
+
+
+		return ms2
 
 	def nullButton(self):
 	    # method called by button 
@@ -3957,15 +4774,19 @@ class Window (QDialog):
 		self.rt_plot.show()
 			#self.ms1_plot.show()
 			#self.ms2_plot.show()
-
+		self.btn2.setStyleSheet('background-color : lightgreen')
+		self.btn5.setStyleSheet('background-color : lightgrey')
+		self.btn3.setStyleSheet('background-color : lightgrey')
+		self.btn4.setStyleSheet('background-color : lightgrey')
 		
 		
 	def show_replicate(self):
 		tab_state = Tab_State(self.btn2.setEnabled(True), self.btn3.setEnabled(False), self.btn4.setEnabled(True), self.btn5.setEnabled(True))
 		self.btn3.setEnabled(False)
-		self.btn4.setEnabled(True)
+
 		self.btn2.setEnabled(True)
 		self.btn5.setEnabled(True)
+		self.btn4.setEnabled(True)
 		# self.Nullbutton.setEnabled(True)
 		# self.chooseSample.setEnabled(True)
 		# self.showNull.setEnabled(True)
@@ -3979,6 +4800,10 @@ class Window (QDialog):
 		self.ms1_plot.show()
 		self.ms2_plot.show()
 
+		self.btn3.setStyleSheet('background-color : lightgreen')
+		self.btn5.setStyleSheet('background-color : lightgrey')
+		self.btn2.setStyleSheet('background-color : lightgrey')
+		self.btn4.setStyleSheet('background-color : lightgrey')
 
 
 	def hide_replicate(self):
@@ -3992,6 +4817,8 @@ class Window (QDialog):
 	def show_experiment(self):
 		tab_state = Tab_State(self.btn2.setEnabled(True), self.btn3.setEnabled(True), self.btn4.setEnabled(False), self.btn5.setEnabled(True))
 		self.btn4.setEnabled(False)
+
+
 		self.btn2.setEnabled(True)
 		self.btn3.setEnabled(True)
 		self.btn5.setEnabled(True)
@@ -4007,7 +4834,11 @@ class Window (QDialog):
 		# if self.Blankbutton.isChecked()  == True:
 		# 	self.ex_bOn_plot.hide()
 			#self.ex_bOff_plot.show()
+		self.btn4.setStyleSheet('background-color : lightgreen')
 
+		self.btn5.setStyleSheet('background-color : lightgrey')
+		self.btn3.setStyleSheet('background-color : lightgrey')
+		self.btn2.setStyleSheet('background-color : lightgrey')
 
 	def hide_experiment(self):
 
@@ -4020,6 +4851,11 @@ class Window (QDialog):
 		self.btn2.setEnabled(True)
 		self.btn3.setEnabled(True)
 		self.btn5.setEnabled(False)
+		self.btn5.setStyleSheet('background-color : lightgreen')
+
+		self.btn4.setStyleSheet('background-color : lightgrey')
+		self.btn3.setStyleSheet('background-color : lightgrey')
+		self.btn2.setStyleSheet('background-color : lightgrey')
 		# self.Nullbutton.setEnabled(True)
 		# self.chooseSample.setEnabled(True)
 		# self.showNull.setEnabled(True)
@@ -4027,6 +4863,10 @@ class Window (QDialog):
 	def hide_diversity(self):
 		self.div_plot.hide()
 		pass
+
+
+
+
 
 
 
