@@ -28,6 +28,7 @@ from itertools import chain
 import glob
 from pathlib import Path
 from ms2analyte.file_handling import data_import
+from ms2analyte.file_handling import file_load
 from ms2analyte.visualizations import file_open_model
 from pyteomics import mgf, auxiliary
 import numpy
@@ -75,7 +76,7 @@ def import_dataframe(input_structure, input_type, sample_name):
 
 #######################################################################################
 def import_experiment_dataframe(input_structure):
-	with open((os.path.join(input_structure.output_directory,  input_structure.experiment_name + "_experiment_analyte_overview_tableau_output.csv"))) as f:
+	with open((os.path.join(input_structure.output_directory,  experiment_name + "_experiment_analyte_overview_tableau_output.csv"))) as f:
 		df = pandas.read_csv(f)
 
 	return df
@@ -219,7 +220,7 @@ def import_ms1_dataframe(input_structure, input_type, sample_name):
 
 
 
-	with open((os.path.join(input_structure.output_directory,'Samples',  input_structure.experiment_name + '_experiment_analyte_mass_spectra.pickle')), 'rb') as f:
+	with open((os.path.join(input_structure.output_directory,'Samples',  experiment_name + '_experiment_analyte_mass_spectra.pickle')), 'rb') as f:
 
 
 
@@ -290,7 +291,7 @@ def import_ms2_dataframe(input_structure, input_type, sample_name):
 
 
 
-	with open((os.path.join(input_structure.output_directory, input_structure.experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
+	with open((os.path.join(input_structure.output_directory, experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
 		experiment_info = pickle.load(f)
 
 
@@ -443,13 +444,13 @@ def import_ms2_dataframe(input_structure, input_type, sample_name):
 		ms2_lower = [0]*len(ms2_List)
 		i=0
 		while i < len(ms2_List):
-			ms2_lower[i] = ms2_List[i] - 0.0001
+			ms2_lower[i] = ms2_List[i] - 0.000001
 			i+=1
 
 		ms2_upper = [0]*len(ms2_List)
 		i=0
 		while i < len(ms2_List):
-			ms2_upper[i] = ms2_List[i] + 0.0001
+			ms2_upper[i] = ms2_List[i] + 0.000001
 			i+=1
 
 
@@ -480,11 +481,13 @@ def import_ms2_dataframe(input_structure, input_type, sample_name):
 		df2 = pandas.DataFrame (data2, columns = ['analyte_id', 'ms1_average_mass','ms1_rt','ms2_data','Intensity'])
 		df3 = pandas.DataFrame (data3, columns = ['analyte_id', 'ms1_average_mass','ms1_rt','ms2_data','Intensity'])
 
-
+		print('*******************************************************************',df1[df1.analyte_id == 7])
 		df_combine = [df1,df2,df3]
 
 		df_combine = pandas.concat(df_combine)
 
+
+		print('*******************************************************************',df_combine[df_combine.analyte_id == 7])
 
 
 
@@ -498,29 +501,73 @@ def import_ms2_dataframe(input_structure, input_type, sample_name):
 #################################################################################################
 #### Fetch Input Structure, Input type and Sample name list
 
-input_structure = data_import.input_data_structure()
+# input_structure = data_import.input_data_structure()
+
+
+
+
+
+
+def getFiles(path):
+	answer = []
+	endPaths = glob.glob(path + "*parameters.pickle")
+	answer += endPaths
+	if len(glob.glob(path + "*Output/")) > 0:
+		answer += getFiles(path + "*Output/")
+	return answer
+filepaths = getFiles("./")
+print('********************************************** ANSWER',filepaths)
+
+
+
+
+
+
+
+# input_structure = file_load.sample_dataframe_concat()
+
+# print(input_structure)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 input_type = "Samples"
 
 
 path_name_list = []
-for path in Path(input_structure.output_directory).rglob('*parameters.pickle'):
+for path in Path(data_import.input_data_structure().output_directory).rglob('*parameters.pickle'):
 	
 	path_name_list.append(path.name)
 path_name = str(path_name_list[0])
-print(path_name)
+print('***********************************************************************************PATH NAME',path_name_list)
 
 
 
 
+object1 = pandas.read_pickle((os.path.join(data_import.input_data_structure().output_directory, path_name)))
+
+input_structure = object1
+
+print('************************************************ experiment name',object1.experiment_name)
+
+
+experiment_name = object1.experiment_name
 
 
 
-object1 = pandas.read_pickle((os.path.join(input_structure.output_directory, path_name)))
 
-print(object1.experiment_name)
-print(object1.sample_directory)
+print('***********************************************OUTPUT DIRECTORY',object1.output_directory)
 
 
 # objects = []
@@ -627,6 +674,13 @@ class Tab_State:
 
 		return self.diversity_state
 
+
+
+
+
+
+
+
 class Current_Sample:
 	def __init__(self, current_sample):
 
@@ -657,6 +711,7 @@ class Window (QDialog):
 
 	def __init__(self):
 		super(Window, self).__init__()
+		self.right_button_is_clicked = 0
 
 
         # changing the background color to yellow 
@@ -681,28 +736,65 @@ class Window (QDialog):
 		self.Plot_Analyte_Legend()
 		windowLayout = QVBoxLayout()
 		# windowLayout.setStyleSheet("background-color: white;")
+
+
+		self.menu_bar = QMenuBar()
+
+
+
+
+
+		self.file_menu = self.menu_bar.addMenu('File')
+		self.edit_menu = self.menu_bar.addMenu('Edit')
+		self.preferences_menu = self.menu_bar.addMenu('Preferences' )
+		self.export_menu = self.menu_bar.addMenu('Export')
+		self.help_menu = self.menu_bar.addMenu('Help')
+
+
+
+
+
+
+		self.new_action = QAction('New', app)
+		self.open_action = QAction('Open', app)
+		self.open_recent_action = QAction('Open Recent', app)
+		self.exit_action = QAction('Exit', app)
+		self.exit_action.triggered.connect(exit)
+		self.file_menu.addAction(self.new_action)
+		self.file_menu.addAction(self.open_action)
+		self.file_menu.addAction(self.open_recent_action)
+		self.file_menu.addAction(self.exit_action)
+
+
+
+		self.readme_action = QAction('Read Me', app)
+
+
+
+
+
+
+		self.help_menu.addAction(self.readme_action)
+		self.readme_action.triggered.connect(self.read_me)
+
+		self.open_action.triggered.connect(self.openFileNamesDialog)
+
+
+
+
+		self.csv_action = QAction('Export CSV', app)
+		self.export_menu.addAction(self.csv_action)
+		self.csv_action.triggered.connect(self.sample_export)
+
+		self.mgf_action = QAction('Export MGF', app)
+		self.export_menu.addAction(self.mgf_action)
+		self.mgf_action.triggered.connect(self.ms1_DF_Export)
+
+		windowLayout.addWidget(self.menu_bar)
 		windowLayout.addWidget(self.horizontalGroupBox)
 		self.setLayout(windowLayout)
 
-
-		# extractAction = QAction("&Quit", self)
-		# extractAction.setShortcut("Ctrl+Q")
-		# extractAction.setStatusTip('Leave The App')
-		# extractAction.triggered.connect(self.close_application)
-		
-		# self.statusBar()
-		
-		# mainMenu = self.menuBar()
-		# mainMenu.resize(100,100)
-		
-		# fileMenu = mainMenu.addMenu('&File')
-		# fileMenu.addAction(extractAction)
-		# toolsMenu = mainMenu.addMenu('&Tools')
-
-
-
-
-
+ 
 
 		# self.setStyleSheet("background-color: white;")
 
@@ -773,7 +865,13 @@ class Window (QDialog):
 		layoutMain = QGridLayout()
 		
 
+		# self.fileMenuBar = QMenuBar(self).addMenu('File')
 
+
+
+		# self.fileMenuBar.addMenu('File')
+		# self.preferencesMenuBar = QMenuBar(self)
+		# self.preferencesMenuBar.addMenu('Preferences')
 
 		# self.s1 = QScrollBar()
 
@@ -947,12 +1045,16 @@ class Window (QDialog):
 
 		self.ms1_rightButton = QToolButton(self)
 		self.ms1_rightButton.setArrowType(Qt.RightArrow)
+		self.ms1_rightButton.clicked.connect(self.is_right_button_clicked)
 		self.ms1_rightButton.clicked.connect(self.Plot_ms1)
-		self.ms1_rightButton.clicked.connect(self.Plot_ms2)
+
+
 		self.ms1_leftButton = QToolButton(self)
 		self.ms1_leftButton.setArrowType(Qt.LeftArrow)
+		self.ms1_leftButton.clicked.connect(self.is_left_button_clicked)
 		self.ms1_leftButton.clicked.connect(self.Plot_ms1)
-		self.ms1_leftButton.clicked.connect(self.Plot_ms2)
+
+
 		self.lock_aspect = QPushButton(self)
 
 		self.lock_aspect.setCheckable(True) 
@@ -1457,10 +1559,17 @@ class Window (QDialog):
 		# layoutRegion10.addWidget(self.ms1_rightButton,2,1,QtCore.Qt.AlignRight)
 
 		layoutRegion11 = QGridLayout()
-		layoutRegion11.addWidget(self.lock_aspect,2,2,QtCore.Qt.AlignCenter)
-		layoutRegion11.addWidget(self.ms1_rightButton,2,1,QtCore.Qt.AlignCenter)
-		layoutRegion11.addWidget(self.ms1_leftButton,2,0,QtCore.Qt.AlignCenter)
-		layoutRegion11.setContentsMargins(375, 50, 5, 5)
+		# layoutRegion11.addWidget(self.lock_aspect,2,2,QtCore.Qt.AlignCenter)
+		# layoutRegion11.addWidget(self.ms1_rightButton,2,1,QtCore.Qt.AlignCenter)
+		# layoutRegion11.addWidget(self.ms1_leftButton,2,0,QtCore.Qt.AlignCenter)
+
+		layoutRegion11.addWidget(self.lock_aspect,2,2,QtCore.Qt.AlignTop)
+		layoutRegion11.addWidget(self.ms1_rightButton,2,1,QtCore.Qt.AlignTop)
+		layoutRegion11.addWidget(self.ms1_leftButton,2,0,QtCore.Qt.AlignTop)
+		layoutRegion11.setContentsMargins(0,5, 5, 0)
+
+		# layoutRegion12 = QGridLayout()
+		# layoutRegion12.addWidget(self.menu_bar,0,0)
 
 
 ############# Create Main Grid ###############################
@@ -1470,21 +1579,21 @@ class Window (QDialog):
 		layoutMain.setColumnStretch(1, 2)
 		# layoutMain.setRowStretch(1, 0.5)
 		# layoutRegion2.setColumnStretch(0,4)
-		layoutMain.addLayout(layoutRegion3,1,0,QtCore.Qt.AlignRight)
-		layoutMain.addLayout(layoutRegion5,1,1,QtCore.Qt.AlignRight)
-		layoutMain.addLayout(layoutRegion1,0,0,QtCore.Qt.AlignLeft)
+		layoutMain.addLayout(layoutRegion3,2,0,QtCore.Qt.AlignRight)
+		layoutMain.addLayout(layoutRegion5,2,1,QtCore.Qt.AlignRight)
+		layoutMain.addLayout(layoutRegion1,1,0,QtCore.Qt.AlignLeft)
 
 		# layoutMain.setSpacing(0)
-		layoutMain.addLayout(layoutRegion2,0,1, 1, 1, QtCore.Qt.AlignRight)
-		layoutMain.addLayout(layoutRegion7,0,3, QtCore.Qt.AlignCenter)
-		layoutMain.addLayout(layoutRegion4,1,3, 1, 1,QtCore.Qt.AlignTop)
-		layoutMain.addLayout(layoutRegion6,1,0, 1,1)
-		layoutMain.addLayout(layoutRegion8,1,0, 1,1)
+		layoutMain.addLayout(layoutRegion2,1,1, 1, 1, QtCore.Qt.AlignRight)
+		layoutMain.addLayout(layoutRegion7,1,3, QtCore.Qt.AlignCenter)
+		layoutMain.addLayout(layoutRegion4,2,3, 1, 1,QtCore.Qt.AlignTop)
+		layoutMain.addLayout(layoutRegion6,2,0, 1,1)
+		layoutMain.addLayout(layoutRegion8,2,0, 1,1)
 
-		layoutMain.addLayout(layoutRegion9,1,2)
+		layoutMain.addLayout(layoutRegion9,2,2)
 		# layoutMain.addLayout(layoutRegion10,1,1,QtCore.Qt.AlignTop)
-		layoutMain.addLayout(layoutRegion11,1,1)
-
+		layoutMain.addLayout(layoutRegion11,2,1,1, 1, QtCore.Qt.AlignRight)
+		# layoutMain.addLayout(layoutRegion12,0,0)
 
 ############################################################################
 
@@ -1498,8 +1607,8 @@ class Window (QDialog):
 
 
 
-
-
+		self.ms1_rightButton.setEnabled(False)
+		self.ms1_leftButton.setEnabled(False)
 
 ################### Plots #################################
 
@@ -1763,11 +1872,15 @@ class Window (QDialog):
 		lastClicked = []
 		print('PLOT SAMPLE BEGIN')
 		
-
+		print('TEST11111111')
 		tab_state = Tab_State(self.btn2.isEnabled(), self.btn3.isEnabled(), self.btn4.isEnabled(), self.btn5.isEnabled())
+		print('TEST2222222')
 		Sample_State = tab_state.return_sample_state()
+		print('TEST3333333')
 		Replicate_State = tab_state.return_replicate_state()
+		print('TEST44444444')
 		Experiment_State = tab_state.return_experiment_state()
+		print("TESTTESTTEST")
 		print('Loading Sample Tab')
 		state = State(self.Nullbutton.isChecked(), self.Blankbutton.isChecked(), 0, 1200, 0, 7,self.Toggle_rt.isChecked())
 		Toggle_rt = state.return_Toggle_rt()
@@ -3417,7 +3530,8 @@ class Window (QDialog):
 
 
 
-
+		self.ms1_rightButton.setEnabled(False)
+		self.ms1_leftButton.setEnabled(False)
 
 
 
@@ -3425,6 +3539,7 @@ class Window (QDialog):
 
 
 		self.ms1_plot.clear()
+		self.ms2_plot.clear()
 		# self.ms1_plot.setLimits(ymin=0, ymax=100000)
 		df, df2 , df3= self.ms1_Plot_DF()
 
@@ -3668,7 +3783,7 @@ class Window (QDialog):
 					colour +=1
 
 
-				with open((os.path.join(input_structure.output_directory, input_structure.experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
+				with open((os.path.join(input_structure.output_directory, experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
 					experiment_info = pickle.load(f)
 
 				if experiment_info.ms2_type == 'DDA':
@@ -3680,7 +3795,7 @@ class Window (QDialog):
 
 					for average_mass in ms2_sorted.ms1_average_mass.unique():
 						unique_mass.append(average_mass)
-
+					self.length_unique_mass = len(unique_mass)
 					unique_mass = np.round_(unique_mass, decimals = 5)
 					print('UNIQUE MASS',unique_mass)
 					df_combine = df_combine.round(4)
@@ -3696,8 +3811,25 @@ class Window (QDialog):
 
 					unique_intensity = []
 					j = 0
-					i = 0
+
+
+
+
+
+					if self.right_button_is_clicked > len(unique_mass) - 1:
+						self.right_button_is_clicked = 0
+
+					if len(unique_mass) == 1:
+						self.right_button_is_clicked = 0
+
+
+
+					print('BUTTON IS CLICKED',self.right_button_is_clicked)
 					while j < len(unique_mass):
+
+
+
+
 						mass_upper_lower = []
 						
 						intensity_upper_lower = []
@@ -3720,51 +3852,121 @@ class Window (QDialog):
 						intensity_upper_lower.append(float(unique_intensity[j][0]))
 						print('TEST3')
 						intensity_upper_lower.append(0)
-
+						print('TEST4')
 
 						print(mass_upper_lower)
+						print('TEST5')
 						print(intensity_upper_lower)
+						print('TEST6')
 						# print("Unique Intensity", unique_intensity)
 						# print("Unique Intensity", unique_intensity[0][0])
 						# print(mass_upper_lower)
 						# print(intensity_upper_lower)
 
-						pen = pg.mkPen(color=(255, 0, 0))
-						
+						pen = pg.mkPen(color=(255, 0, 0),width = 1.5)
+						print('TEST7')
 						self.ms1_plot.plot( x=mass_upper_lower, y=intensity_upper_lower,pen=pen)
-
-
-
-
-
-						
-						mass_upper_lower = []
-						
-						intensity_upper_lower = []
-
-						value = format(float(unique_mass[i]), '.4f')
-						print(value)
-						sample_analyte_df_sorted = df_combine[df_combine.mz == float(value)]
-
-						mass_upper_lower.append(float(unique_mass[i]) - 0.0001)
-						mass_upper_lower.append(float(unique_mass[i]))
-						mass_upper_lower.append(float(unique_mass[i]) + 0.0001)
-
-
-						unique_intensity.append(sample_analyte_df_sorted.intensity.to_numpy())
-						intensity_upper_lower.append(0)
-						intensity_upper_lower.append(float(unique_intensity[i][0]))
-						intensity_upper_lower.append(0)
-						pen = pg.mkPen(color=(0, 128, 0))
-						
-						self.ms1_plot.plot( x=mass_upper_lower, y=intensity_upper_lower,pen=pen)
-						
+						print('TEST8')
+						# button_is_clicked = repr(self.sender())
 
 		
 
 						j+=1
 
+					mass_upper_lower = []
+					print('TEST9')
+					intensity_upper_lower = []
+					print('TEST10')
+					value = format(float(unique_mass[self.right_button_is_clicked]), '.4f')
+					print('TEST11')
+					print(value)
+					print('TEST12')
+					sample_analyte_df_sorted = df_combine[df_combine.mz == float(value)]
+					print('TEST13')
 
+					mass_upper_lower.append(float(unique_mass[self.right_button_is_clicked]) - 0.0001)
+					print('TEST14')
+					mass_upper_lower.append(float(unique_mass[self.right_button_is_clicked]))
+					print('TEST15')
+
+					mass_upper_lower.append(float(unique_mass[self.right_button_is_clicked]) + 0.0001)
+					print('TEST16')
+
+
+
+					unique_intensity.append(sample_analyte_df_sorted.intensity.to_numpy())
+					print('TEST17')
+
+					intensity_upper_lower.append(0)
+					print('TEST18')
+					# print('UNIQUE Intensity',unique_intensity[2][0])
+					intensity_upper_lower.append(float(unique_intensity[self.right_button_is_clicked][0]))
+					print('TEST19')
+
+					intensity_upper_lower.append(0)
+					print('TEST20')
+
+					pen = pg.mkPen(color=(152,251,152),width = 1.5)
+					print('TEST21')
+
+					
+					self.ms1_plot.plot( x=mass_upper_lower, y=intensity_upper_lower,pen=pen)
+
+
+					if self.right_button_is_clicked == len(unique_mass) - 1:
+						self.ms1_rightButton.setEnabled(False)
+
+					else:
+						self.ms1_rightButton.setEnabled(True)
+
+					if self.right_button_is_clicked == 0:
+						self.ms1_leftButton.setEnabled(False)
+
+					else:
+						self.ms1_leftButton.setEnabled(True)
+
+
+					print('TEST22')
+					print(mass_upper_lower)
+
+
+					ms2_mass_data = []
+					ms2_sorted=ms2_sorted[ms2_sorted.ms1_average_mass == float(unique_mass[self.right_button_is_clicked])]
+					ms2_sorted.sort_values('ms2_data', inplace=True)
+					max_ms2_mass = ms2_sorted.ms2_data.max()
+					print(max_ms2_mass)
+					min_ms2_mass = ms2_sorted.ms2_data.min()
+					print(max_ms2_mass)
+					print(ms2_sorted)
+
+					ms2_mass_data = ms2_sorted.ms2_data.to_numpy()
+					print(ms2_mass_data)
+
+					ms2_intensity_data = ms2_sorted.Intensity.to_numpy()
+					print(ms2_intensity_data)
+					pen = pg.mkPen(color=(0, 0, 0))
+					self.ms2_plot.setXRange(min=float(min_ms2_mass) - 0.1,max=float(max_ms2_mass) + 0.1)
+					self.ms2_plot.setYRange(min=1200, max=20000)
+					self.ms2_plot.clear()
+					self.ms2_plot.plot( x=ms2_mass_data, y=ms2_intensity_data,pen=pen)
+
+					print(ms2_mass_data)
+
+					i = 0
+					while i < len(ms2_mass_data):
+
+
+						if ms2_intensity_data[i] > 0:
+
+							text2 = pg.TextItem(str(np.round(ms2_mass_data[i],4)),color=(0,0,0))
+							self.ms2_plot.addItem(text2)
+
+
+							text2.setPos(float(ms2_mass_data[i]), float(ms2_intensity_data[i])+1500)
+
+							i+=1
+						else:
+							i+=1
 
 		if chooseAnalyte == "Experiment Analyte ID":
 			self.ms1_plot.setXRange(min=0,max=1200)
@@ -3832,7 +4034,7 @@ class Window (QDialog):
 
 
 
-		with open((os.path.join(input_structure.output_directory, input_structure.experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
+		with open((os.path.join(input_structure.output_directory, experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
 			experiment_info = pickle.load(f)
 
 
@@ -4269,7 +4471,11 @@ class Window (QDialog):
 
 			# df=df[df.scan == max_scan_value[0]]
 		print('SAMPLE PLOT DF END')
-		print('SORTED DF MZ 2', sorted_df_mz[sorted_df_mz.analyte_id == 2])
+
+
+
+
+
 		return sorted_df_mz, sorted_df_rt
 
 
@@ -4541,6 +4747,49 @@ class Window (QDialog):
 
 		return df1, df, df3
 
+
+
+
+	def is_right_button_clicked(self):
+		print('***************************************************************UNIQUE MASS',self.length_unique_mass)
+
+		if self.right_button_is_clicked != (self.length_unique_mass - 1):
+
+			self.right_button_is_clicked +=1
+
+
+		return self.right_button_is_clicked
+
+	def is_left_button_clicked(self):
+
+		if self.right_button_is_clicked != 0:
+			self.right_button_is_clicked -=1
+
+		else:
+			self.right_button_is_clicked =0
+
+		return self.right_button_is_clicked
+
+
+
+
+
+
+	def openFileNamesDialog(self):
+		options = QFileDialog.Options()
+		options |= QFileDialog.DontUseNativeDialog
+		files, _ = QFileDialog.getOpenFileNames(self,"QFileDialog.getOpenFileNames()", "","All Files (*);;Python Files (*.py)", options=options)
+		if files:
+			print(files)
+
+
+
+
+
+	def read_me(self):
+
+		os.startfile('README.md')
+
 	def ms1_DF_Export(self):
 
 
@@ -4621,7 +4870,7 @@ class Window (QDialog):
 	def ms2_Plot_DF(self):
 		comboText=self.comboBox.currentText()
 
-		with open((os.path.join(input_structure.output_directory, input_structure.experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
+		with open((os.path.join(input_structure.output_directory, experiment_name + "_experiment_import_parameters.pickle")), 'rb') as f:
 			experiment_info = pickle.load(f)
 
 
@@ -4634,7 +4883,7 @@ class Window (QDialog):
 
 
 			ms2.sort_values('average_mass', inplace=True)
-			print(ms2[ms2.analyte_id == 1])
+
 
 
 
@@ -4643,8 +4892,8 @@ class Window (QDialog):
 
 
 			ms2.sort_values('ms2_data', inplace=True)
-			print(ms2[ms2.analyte_id == 2])
 
+			print('==========================================================================',ms2[ms2.analyte_id == 7])
 
 
 
