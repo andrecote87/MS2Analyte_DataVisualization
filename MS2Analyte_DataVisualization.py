@@ -5088,7 +5088,7 @@ class Window (QDialog):
 		self.btn5.setStyleSheet('background-color : lightgrey')
 		self.btn3.setStyleSheet('background-color : lightgrey')
 		self.btn2.setStyleSheet('background-color : lightgrey')
-
+#Test
 	def hide_experiment(self):
 
 		self.ex_bOn_plot.hide()
